@@ -33,26 +33,25 @@ body {
 
 /* ===== NAVIGATION ===== */
 nav {
-  background: #005aa7;
+    background-color: #0055a5;
 }
 
-nav ul {
-  list-style: none;
-  display: flex;
-  justify-content: center;   /* THIS centers menu */
-  align-items: center;
-  margin: 0;
-  padding: 10px 0;
+.nav-inner {
+    max-width: 1100px;
+    margin: auto;
+    padding: 10px;
+    text-align: center;
 }
 
-nav ul li {
-  margin: 0 20px;
+nav a {
+    color: white;
+    margin: 0 15px;
+    text-decoration: none;
+    font-weight: bold;
 }
 
-nav ul li a {
-  color: white;
-  text-decoration: none;
-  font-weight: bold;
+nav a:hover {
+    text-decoration: underline;
 }
 
 /* ===== MOVING NOTICE ===== */
@@ -339,3 +338,4 @@ footer {
   font-weight: bold;
 
 }
+
