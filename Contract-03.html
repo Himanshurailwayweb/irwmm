@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Contract 03 | Railway Signal Department</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<script>
+function saveVerification() {
+  let status = document.querySelector('input[name="status"]:checked').value;
+  let remarks = document.getElementById("remarks").value;
+
+  localStorage.setItem("contract01_status", status);
+  localStorage.setItem("contract01_remarks", remarks);
+
+  let output = document.getElementById("finalStatus");
+
+  if (status === "approved") {
+    output.style.color = "green";
+    output.innerHTML = "✔ Work approved by officer.<br>Remarks: " + remarks;
+  } else {
+    output.style.color = "red";
+    output.innerHTML = "✖ Work rejected by officer.<br>Remarks: " + remarks;
+  }
+}
+</script>
+
+<body>
+<!-- HEADER -->
+<header class="main-header">
+    <img src="logo.jpg" alt="Indian Railways Logo" class="header-logo">
+    <h1>Railway Signalling & Telecom Department</h1>
+    <p>Contract-wise Work Monitoring</p>
+</header>
+
+<!-- NAVIGATION -->
+<nav>
+    <div class="nav-inner">
+        <a href="index.html">Home</a>
+        <a href="contracts.html">Contracts</a>
+        <a href="#">Materials</a>
+        <a href="#">Progress</a>
+        <a href="#">Feedback</a>
+    </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="container">
+
+    <h2>Contract 03 — Fuse auto Changeover system Installation </h2>
+
+    <!-- CONTRACT INFO -->
+    <table class="detail-table">
+        <tr>
+            <th>JBP/N/SIG/TENDER/2023/29</th>
+            <td>01</td>
+        </tr>
+        <tr>
+            <th>Name of Work</th>
+            <td>CSL/CSR work of 10 station in JBP division</td>
+        </tr>
+        <tr>
+            <th>Contractor</th>
+            <td>Solar LED Solutions</td>
+        </tr>
+        <tr>
+            <th>Date of Tender Awarded</th>
+            <td>15-Jan-2025</td>
+        </tr>
+        <tr>
+            <th>Date of Completion Period</th>
+            <td>6 Months</td>
+        </tr>
+        <tr>
+            <th>Current Status</th>
+            <td class="status ongoing">Ongoing</td>
+        </tr>
+    </table>
+
+    <!-- PROGRESS SECTION -->
+    <h3>Work Progress</h3>
+
+    <div class="progress-box">
+        <div class="progress-bar" style="width: 45%;">80%</div>
+    </div>
+
+    <!-- MATERIAL STATUS -->
+    <h3>Material Supply Status</h3>
+
+    <table class="detail-table">
+        <tr>
+            <th>Material</th>
+            <th>Required</th>
+            <th>Received</th>
+            <th>Status</th>
+        </tr>
+        <tr>
+            <td>Signal Cable laying</td>
+            <td>13 KM</td>
+            <td>13 KM</td>
+            <td class="status Completed">Completed</td>
+        </tr>
+        <tr>
+            <td>FACS installed</td>
+            <td>100 nos</td>
+            <td>100 Nos</td>
+            <td class="status completed">Completed</td>
+        </tr>
+    </table>
+
+    <!-- REMARKS -->
+    <h3>Remarks / Last Update</h3>
+    <p>
+        Cable laying completed up to Platform No. 2.  
+        Balance work under progress. Safety measures complied.
+    </p>
+    <form class="update-form locked">
+
+
+    <label>Work Progress (%)</label>
+    <input type="number" min="0" max="100" placeholder="Enter progress percentage">
+
+    <label>Trenching Depth (in mm)</label>
+    <input type="number" placeholder="Enter trenching depth">
+
+    <label>Material Supplied Details</label>
+    <textarea rows="3" placeholder="Enter material supply details"></textarea>
+
+    <label>Contractor Remarks</label>
+    <textarea rows="3" placeholder="Any remarks or issues"></textarea>
+
+    <button type="submit">Submit Update</button>
+
+</form>
+<!-- OFFICER VERIFICATION -->
+<h3>Officer Verification</h3>
+
+<div class="officer-box">
+
+    <p><strong>Trenching Depth Verification</strong></p>
+
+    <label>
+        <input type="radio" name="trench" checked>
+        Approved
+    </label>
+
+    <label>
+        <input type="radio" name="trench">
+        Rejected
+    </label>
+    <!-- FINAL STATUS -->
+<h3>Final Status</h3>
+
+<div class="final-status approved">
+    ✔ Work parameters verified and approved by officer.
+</div>
+    <!-- Example responsive Google Sheet embed -->
+<style>
+.sheet-container {
+  width: 100%;
+  /* Use padding-top for aspect ratio (e.g. 75% for ~4:3) */
+  padding-top: 75%;
+  position: relative;
+}
+.sheet-container iframe {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+</style>
+
+<div class="sheet-container">
+  <iframe 
+    src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSQbkQxEVBos_9D3fkKEd9gqkriGzul40mtCmD14TYzDwEDRHfhxQV-ag1vz44tlSsGRl3DNH-Hf3Tq/pubhtml?widget=true&amp;headers=false">
+  </iframe>
+</div>
+<section class="verification-box">
+  <h2>Officer Verification</h2>
+
+  <label>
+    <input type="radio" name="status" value="approved" checked>
+    Approved
+  </label>
+
+  <label>
+    <input type="radio" name="status" value="rejected">
+    Rejected
+  </label>
+
+  <br><br>
+
+  <label>Officer Remarks</label><br>
+  <textarea id="remarks" placeholder="Enter verification remarks"></textarea>
+
+  <br><br>
+
+  <button onclick="saveVerification()">Save Verification</button>
+
+  <div id="finalStatus"></div>
+</section>
+
+    <label>Officer Remarks</label>
+    <textarea rows="3" placeholder="Enter verification remarks"></textarea>
+
+    <button class="approve-btn">Save Verification</button>
+
+</div>
+
+</main>
+
+<footer>
+    <p>© 2025 Railway Signalling & Telecom Department (Himanshu Choubey)</p>
+</footer>
+
+</body>
+</html>

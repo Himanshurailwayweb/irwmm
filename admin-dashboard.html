@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Railway S&T – Contract Dashboard</title>
+  <link rel="stylesheet" href="css\style.css">
+</head>
+<script>
+function loadStatus(contractId, elementId) {
+  let status = localStorage.getItem(contractId);
+  let el = document.getElementById(elementId);
+
+  if (!status) return;
+
+  el.innerText = "Status: " + status.toUpperCase();
+
+  el.parentElement.classList.remove("approved", "pending", "rejected");
+
+  if (status === "approved") el.parentElement.classList.add("approved");
+  if (status === "rejected") el.parentElement.classList.add("rejected");
+}
+loadStatus("contract01_status", "status01");
+</script>
+
+
+<body>
+
+<header class="main-header">
+  <h1>Railway Signalling & Telecom Department</h1>
+  <p>Work Contract Progress Dashboard</p>
+</header>
+
+<section class="dashboard">
+
+  <div class="contract approved">
+    <h3>Contract 01</h3>
+    <p>Trenching & Cable Laying</p>
+    <span id="status01">Status: Pending</span>
+    <a href="contracts/contract-01.html">Open Contract</a>
+  </div>
+
+  <div class="contract pending">
+    <h3>Contract 02</h3>
+    <p>Indoor Equipment Installation</p>
+    <span id="status01">Status: Pending</span>
+    <a href="contracts/contract-02.html">Open Contract</a>
+  </div>
+
+  <div class="contract rejected">
+    <h3>Contract 03</h3>
+    <p>OFC Blowing Work</p>
+    <span id="status01">Status: Pending</span>
+    <a href="contracts/contract-03.html">Open Contract</a>
+  </div>
+
+  <div class="contract pending">
+  <h3>Contract 04</h3>
+  <p>Work Description Here</p>
+  <span id="status01">Status: Pending</span>
+  <a href="contracts/contract-04.html">Open Contract</a>
+</div>
+
+
+<div class="contract pending">
+  <h3>Contract 05</h3>
+  <p>Work Description Here</p>
+  <span id="status01">Status: Pending</span>
+  <a href="contracts/contract-05.html">Open Contract</a>
+</div>
+
+<div class="contract pending">
+  <h3>Contract 06</h3>
+  <p>Work Description Here</p>
+  <span id="status01">Status: Pending</span>
+  <a href="contracts/contract-06.html">Open Contract</a>
+</div>
+
+
+</section>
+
+</body>
+</html>

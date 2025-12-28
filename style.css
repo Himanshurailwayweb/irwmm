@@ -1,0 +1,39 @@
+.main-header {
+  text-align: center;
+  background: #003366;
+  color: white;
+  padding: 20px;
+}
+
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 30px;
+}
+
+.contract {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 6px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.contract a {
+  display: inline-block;
+  margin-top: 10px;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.approved {
+  border-left: 6px solid green;
+}
+
+.pending {
+  border-left: 6px solid orange;
+}
+
+.rejected {
+  border-left: 6px solid red;
+}
