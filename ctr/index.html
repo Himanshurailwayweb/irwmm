@@ -1,1 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <title>CTR Management | IRWMM</title>
+
+  <link rel="stylesheet" href="css/ctr.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <div class="brand">
+        <div class="brand-logo">IR</div>
+
+        <div>
+          <h2>IRWMM</h2>
+          <span>Railway Work Management</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-menu">
+
+        <a href="../index.html">
+          <span>⌂</span>
+          Dashboard
+        </a>
+
+        <a href="../contracts.html">
+          <span>▣</span>
+          Contracts
+        </a>
+
+        <a href="../materials.html">
+          <span>□</span>
+          Materials
+        </a>
+
+        <a href="../progress.html">
+          <span>◫</span>
+          Work Progress
+        </a>
+
+        <a href="index.html" class="active">
+          <span>⌘</span>
+          CTR Module
+        </a>
+
+      </nav>
+
+      <div class="sidebar-bottom">
+        <p>Engineering Management Portal</p>
+        <small>West Central Railway</small>
+      </div>
+
+    </aside>
+
+
+    <!-- MAIN AREA -->
+    <main class="main-content">
+
+      <!-- TOP BAR -->
+      <header class="topbar">
+
+        <div>
+          <h1>CTR Management System</h1>
+          <p>Digital CTR Drawing & Alteration Management</p>
+        </div>
+
+        <div class="user-area">
+          <div class="notification">🔔</div>
+
+          <div class="user">
+            <div class="avatar">H</div>
+
+            <div>
+              <strong>Staff User</strong>
+              <span>Railway Employee</span>
+            </div>
+          </div>
+        </div>
+
+      </header>
+
+
+      <!-- PAGE CONTENT -->
+      <section class="page-content">
+
+        <div class="breadcrumb">
+          IRWMM / CTR Module
+        </div>
+
+
+        <!-- HERO -->
+        <section class="ctr-hero">
+
+          <div>
+            <span class="hero-tag">ENGINEERING MODULE</span>
+
+            <h2>CTR Drawing Management</h2>
+
+            <p>
+              View station-wise CTR drawings, maintain conductor
+              information and manage controlled CTR alterations.
+            </p>
+          </div>
+
+          <div class="hero-status">
+            <span>System Status</span>
+            <strong>● Development Mode</strong>
+          </div>
+
+        </section>
+
+
+        <!-- MODULE CARDS -->
+        <div class="module-heading">
+
+          <div>
+            <h2>CTR Module</h2>
+            <p>Select an operation to continue</p>
+          </div>
+
+        </div>
+
+
+        <div class="module-grid">
+
+          <!-- STATIONS -->
+          <article class="module-card primary-card">
+
+            <div class="card-icon">
+              🚉
+            </div>
+
+            <div class="card-content">
+              <span class="card-label">STATION MANAGEMENT</span>
+
+              <h3>Station Wise CTR</h3>
+
+              <p>
+                Select a station and access its complete CTR racks,
+                location boxes and conductor structure.
+              </p>
+
+              <button type="button" disabled>
+                Stations Coming Next
+              </button>
+            </div>
+
+          </article>
+
+
+          <!-- EXISTING CTR -->
+          <article class="module-card">
+
+            <div class="card-icon">
+              ▤
+            </div>
+
+            <div class="card-content">
+              <span class="card-label">CURRENT DRAWING</span>
+
+              <h3>View Existing CTR</h3>
+
+              <p>
+                View the latest approved CTR arrangement and complete
+                conductor particulars.
+              </p>
+
+              <button type="button" disabled>
+                Select Station First
+              </button>
+            </div>
+
+          </article>
+
+
+          <!-- MODIFY CTR -->
+          <article class="module-card">
+
+            <div class="card-icon">
+              ✎
+            </div>
+
+            <div class="card-content">
+              <span class="card-label">ALTERATION</span>
+
+              <h3>Modify CTR</h3>
+
+              <p>
+                Propose conductor changes and submit CTR alterations
+                through the approval workflow.
+              </p>
+
+              <button type="button" disabled>
+                Available After Setup
+              </button>
+            </div>
+
+          </article>
+
+
+          <!-- HISTORY -->
+          <article class="module-card">
+
+            <div class="card-icon">
+              ◷
+            </div>
+
+            <div class="card-content">
+              <span class="card-label">RECORDS</span>
+
+              <h3>Alteration History</h3>
+
+              <p>
+                Access previous CTR versions, approved alterations,
+                remarks and generated PDF records.
+              </p>
+
+              <button type="button" disabled>
+                No Records Yet
+              </button>
+            </div>
+
+          </article>
+
+        </div>
+
+
+        <!-- WORKFLOW -->
+        <section class="workflow-section">
+
+          <div class="section-title">
+            <h2>CTR Alteration Workflow</h2>
+
+            <p>
+              Controlled process for every modification
+            </p>
+          </div>
+
+
+          <div class="workflow">
+
+            <div class="workflow-step">
+              <span>1</span>
+              <strong>Existing CTR</strong>
+              <small>Current approved drawing</small>
+            </div>
+
+            <div class="workflow-arrow">→</div>
+
+            <div class="workflow-step">
+              <span>2</span>
+              <strong>Modification</strong>
+              <small>Alteration proposed</small>
+            </div>
+
+            <div class="workflow-arrow">→</div>
+
+            <div class="workflow-step">
+              <span>3</span>
+              <strong>Review</strong>
+              <small>Officer verification</small>
+            </div>
+
+            <div class="workflow-arrow">→</div>
+
+            <div class="workflow-step">
+              <span>4</span>
+              <strong>Approval</strong>
+              <small>Authorized approval</small>
+            </div>
+
+            <div class="workflow-arrow">→</div>
+
+            <div class="workflow-step">
+              <span>5</span>
+              <strong>New CTR</strong>
+              <small>PDF & version generated</small>
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- SECURITY NOTE -->
+        <section class="security-strip">
+
+          <div>
+            <strong>🔒 Controlled Access</strong>
+            <span>User roles & permissions</span>
+          </div>
+
+          <div>
+            <strong>◷ Complete History</strong>
+            <span>CTR versions retained</span>
+          </div>
+
+          <div>
+            <strong>✓ Approval Workflow</strong>
+            <span>Verified alterations</span>
+          </div>
+
+          <div>
+            <strong>▤ Digital Records</strong>
+            <span>PDF & drawing archive</span>
+          </div>
+
+        </section>
+
+      </section>
+
+    </main>
+
+  </div>
+
+
+  <script src="js/ctr.js"></script>
+
+</body>
+</html>
