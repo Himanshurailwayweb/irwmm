@@ -27,32 +27,42 @@
 
       <nav class="sidebar-menu">
 
-        <a href="../index.html">
-          <span>⌂</span>
-          Dashboard
-        </a>
+  <a href="index.html" class="active">
+    <span>⌂</span>
+    CTR Overview
+  </a>
 
-        <a href="../contracts.html">
-          <span>▣</span>
-          Contracts
-        </a>
+  <a href="#">
+    <span>🚉</span>
+    Station CTR
+  </a>
 
-        <a href="../materials.html">
-          <span>□</span>
-          Materials
-        </a>
+  <a href="#">
+    <span>✎</span>
+    Alterations
+  </a>
 
-        <a href="../progress.html">
-          <span>◫</span>
-          Work Progress
-        </a>
+  <a href="#">
+    <span>⏳</span>
+    Pending Approvals
+  </a>
 
-        <a href="index.html" class="active">
-          <span>⌘</span>
-          CTR Module
-        </a>
+  <a href="#">
+    <span>✓</span>
+    Approved CTR / PDFs
+  </a>
 
-      </nav>
+  <a href="#">
+    <span>◷</span>
+    History
+  </a>
+
+  <a href="../index.html">
+    <span>←</span>
+    Back to Main Website
+  </a>
+
+</nav>
 
       <div class="sidebar-bottom">
         <p>Engineering Management Portal</p>
@@ -132,106 +142,108 @@
 
         <div class="module-grid">
 
-          <!-- STATIONS -->
-          <article class="module-card primary-card">
+  <!-- STATION CTR -->
+  <article class="module-card primary-card">
 
-            <div class="card-icon">
-              🚉
-            </div>
+    <div class="card-icon">
+      🚉
+    </div>
 
-            <div class="card-content">
-              <span class="card-label">STATION MANAGEMENT</span>
+    <div class="card-content">
+      <span class="card-label">STATION CTR</span>
 
-              <h3>Station Wise CTR</h3>
+      <h3>Station CTR</h3>
 
-              <p>
-                Select a station and access its complete CTR racks,
-                location boxes and conductor structure.
-              </p>
+      <p>
+        Select a station to view its current CTR structure,
+        racks, conductor details and location boxes.
+      </p>
 
-              <button type="button" disabled>
-                Stations Coming Next
-              </button>
-            </div>
+      <button type="button" disabled>
+        Station Setup Coming Next
+      </button>
+    </div>
+
+  </article>
+
+
+  <!-- ALTERATIONS -->
+  <article class="module-card">
+
+    <div class="card-icon">
+      ✎
+    </div>
+
+    <div class="card-content">
+      <span class="card-label">CTR ALTERATION</span>
+
+      <h3>Alterations</h3>
+
+      <p>
+        Create and track CTR modification requests for
+        selected stations.
+      </p>
+
+      <button type="button" disabled>
+        Available After Station Setup
+      </button>
+    </div>
+
+  </article>
+
+
+  <!-- APPROVALS -->
+  <article class="module-card">
+
+    <div class="card-icon">
+      ✓
+    </div>
+
+    <div class="card-content">
+      <span class="card-label">APPROVAL WORKFLOW</span>
+
+      <h3>Pending Approvals</h3>
+
+      <p>
+        Review verification, officer remarks and approval
+        status of CTR alterations.
+      </p>
+
+      <button type="button" disabled>
+        No Pending Requests
+      </button>
+    </div>
+
+  </article>
+
+
+  <!-- HISTORY -->
+  <article class="module-card">
+
+    <div class="card-icon">
+      ◷
+    </div>
+
+    <div class="card-content">
+      <span class="card-label">CTR RECORDS</span>
+
+      <h3>Approved CTR & History</h3>
+
+      <p>
+        Access approved CTR versions, alteration records
+        and generated PDF documents.
+      </p>
+
+      <button type="button" disabled>
+        No Records Yet
+      </button>
+    </div>
 
           </article>
 
-
-          <!-- EXISTING CTR -->
-          <article class="module-card">
-
-            <div class="card-icon">
-              ▤
-            </div>
-
-            <div class="card-content">
-              <span class="card-label">CURRENT DRAWING</span>
-
-              <h3>View Existing CTR</h3>
-
-              <p>
-                View the latest approved CTR arrangement and complete
-                conductor particulars.
-              </p>
-
-              <button type="button" disabled>
-                Select Station First
-              </button>
-            </div>
+          </div>
 
           </article>
-
-
-          <!-- MODIFY CTR -->
-          <article class="module-card">
-
-            <div class="card-icon">
-              ✎
-            </div>
-
-            <div class="card-content">
-              <span class="card-label">ALTERATION</span>
-
-              <h3>Modify CTR</h3>
-
-              <p>
-                Propose conductor changes and submit CTR alterations
-                through the approval workflow.
-              </p>
-
-              <button type="button" disabled>
-                Available After Setup
-              </button>
-            </div>
-
-          </article>
-
-
-          <!-- HISTORY -->
-          <article class="module-card">
-
-            <div class="card-icon">
-              ◷
-            </div>
-
-            <div class="card-content">
-              <span class="card-label">RECORDS</span>
-
-              <h3>Alteration History</h3>
-
-              <p>
-                Access previous CTR versions, approved alterations,
-                remarks and generated PDF records.
-              </p>
-
-              <button type="button" disabled>
-                No Records Yet
-              </button>
-            </div>
-
-          </article>
-
-        </div>
 
 
         <!-- WORKFLOW -->
