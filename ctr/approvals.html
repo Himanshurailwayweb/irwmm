@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>CTR Approvals | IRWMM</title>
+
+  <link rel="stylesheet" href="css/ctr.css">
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="brand">
+      <div class="brand-logo">IR</div>
+
+      <div>
+        <h2>IRWMM</h2>
+        <span>CTR Engineering Module</span>
+      </div>
+    </div>
+
+
+    <nav class="sidebar-menu">
+
+      <a href="index.html">
+        <span>⌂</span>
+        CTR Overview
+      </a>
+
+      <a href="stations.html">
+        <span>🚉</span>
+        Station CTR
+      </a>
+
+      <a href="alterations.html">
+        <span>✎</span>
+        Alterations
+      </a>
+
+      <a href="approvals.html" class="active">
+        <span>⏳</span>
+        Pending Approvals
+      </a>
+
+      <a href="approved.html">
+        <span>✓</span>
+        Approved CTR / PDFs
+      </a>
+
+      <a href="history.html">
+        <span>◷</span>
+        History
+      </a>
+
+      <a href="../index.html">
+        <span>←</span>
+        Back to Main Website
+      </a>
+
+    </nav>
+
+
+    <div class="sidebar-bottom">
+      <p>CTR Engineering Module</p>
+      <small>West Central Railway</small>
+    </div>
+
+  </aside>
+
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <header class="topbar">
+
+      <div>
+        <h1>CTR Approvals</h1>
+        <p>Review and process CTR alteration requests</p>
+      </div>
+
+      <div class="user-area">
+
+        <div class="notification">
+          🔔
+        </div>
+
+        <div class="user">
+
+          <div class="avatar">
+            H
+          </div>
+
+          <div>
+            <strong>Officer User</strong>
+            <span>Approval Authority</span>
+          </div>
+
+        </div>
+
+      </div>
+
+    </header>
+
+
+    <section class="page-content">
+
+      <div class="breadcrumb">
+        IRWMM / CTR Module / Pending Approvals
+      </div>
+
+
+      <!-- HERO -->
+      <section class="ctr-hero">
+
+        <div>
+
+          <span class="hero-tag">
+            OFFICER WORKFLOW
+          </span>
+
+          <h2>
+            CTR Review & Approval
+          </h2>
+
+          <p>
+            Review proposed CTR changes, record officer remarks,
+            return incorrect requests or forward approved alterations
+            to the next authorization stage.
+          </p>
+
+        </div>
+
+        <div class="hero-status">
+
+          <span>Pending Requests</span>
+
+          <strong>
+            ● 0 Requests
+          </strong>
+
+        </div>
+
+      </section>
+
+
+      <div class="module-heading">
+
+        <h2>Approval Desk</h2>
+
+        <p>
+          Requests will appear according to the logged-in officer's role.
+        </p>
+
+      </div>
+
+
+      <div class="module-grid">
+
+        <!-- PENDING REVIEW -->
+        <article class="module-card primary-card">
+
+          <div class="card-icon">
+            ⏳
+          </div>
+
+          <div class="card-content">
+
+            <span class="card-label">
+              ACTION REQUIRED
+            </span>
+
+            <h3>
+              Pending Review
+            </h3>
+
+            <p>
+              CTR alterations waiting for review at the
+              current officer approval stage.
+            </p>
+
+            <button type="button" disabled>
+              No Pending Requests
+            </button>
+
+          </div>
+
+        </article>
+
+
+        <!-- RETURN FOR CORRECTION -->
+        <article class="module-card">
+
+          <div class="card-icon">
+            ↩
+          </div>
+
+          <div class="card-content">
+
+            <span class="card-label">
+              CORRECTION
+            </span>
+
+            <h3>
+              Return for Correction
+            </h3>
+
+            <p>
+              Send an alteration back to the initial stage
+              with mandatory officer remarks.
+            </p>
+
+            <button type="button" disabled>
+              Select Request First
+            </button>
+
+          </div>
+
+        </article>
+
+
+        <!-- APPROVED BY ME -->
+        <article class="module-card">
+
+          <div class="card-icon">
+            ✓
+          </div>
+
+          <div class="card-content">
+
+            <span class="card-label">
+              COMPLETED ACTION
+            </span>
+
+            <h3>
+              Approved by Me
+            </h3>
+
+            <p>
+              View CTR alteration requests already reviewed
+              and approved by the logged-in officer.
+            </p>
+
+            <button type="button" disabled>
+              No Records Yet
+            </button>
+
+          </div>
+
+        </article>
+
+
+        <!-- REOPEN FINAL CTR -->
+        <article class="module-card">
+
+          <div class="card-icon">
+            ↻
+          </div>
+
+          <div class="card-content">
+
+            <span class="card-label">
+              AUTHORIZED OFFICER ONLY
+            </span>
+
+            <h3>
+              Reopen Approved CTR
+            </h3>
+
+            <p>
+              If correction is discovered after final approval
+              and digital signing, an authorized officer can
+              initiate a controlled revision.
+            </p>
+
+            <button type="button" disabled>
+              Restricted Permission
+            </button>
+
+          </div>
+
+        </article>
+
+      </div>
+
+
+      <!-- REVIEW PROCESS -->
+      <section class="workflow-section">
+
+        <div class="section-title">
+
+          <h2>
+            Officer Approval Sequence
+          </h2>
+
+          <p>
+            Each approval stage will be recorded with user identity,
+            date, time and remarks.
+          </p>
+
+        </div>
+
+
+        <div class="workflow">
+
+          <div class="workflow-step">
+            <span>1</span>
+            <strong>Submitted</strong>
+            <small>Employee alteration</small>
+          </div>
+
+          <div class="workflow-arrow">
+            →
+          </div>
+
+          <div class="workflow-step">
+            <span>2</span>
+            <strong>Review Officer</strong>
+            <small>Check modification</small>
+          </div>
+
+          <div class="workflow-arrow">
+            →
+          </div>
+
+          <div class="workflow-step">
+            <span>3</span>
+            <strong>Next Officer</strong>
+            <small>Stage-wise approval</small>
+          </div>
+
+          <div class="workflow-arrow">
+            →
+          </div>
+
+          <div class="workflow-step">
+            <span>4</span>
+            <strong>Final Signatory</strong>
+            <small>Digital authorization</small>
+          </div>
+
+          <div class="workflow-arrow">
+            →
+          </div>
+
+          <div class="workflow-step">
+            <span>5</span>
+            <strong>Final CTR</strong>
+            <small>New version created</small>
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- SECURITY NOTE -->
+      <section class="station-info-note">
+
+        <strong>Approval Security</strong>
+
+        <p>
+          An officer will only see actions permitted for that role.
+          Final approved CTR records will never be silently overwritten.
+          Any later correction will create a controlled revision with
+          a complete audit history.
+        </p>
+
+      </section>
+
+    </section>
+
+  </main>
+
+</div>
+
+</body>
+</html>
