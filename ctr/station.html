@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Station CTR | IRWMM</title>
+
+  <link rel="stylesheet" href="css/ctr.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <div class="brand">
+        <div class="brand-logo">IR</div>
+
+        <div>
+          <h2>IRWMM</h2>
+          <span>CTR Engineering Module</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-menu">
+
+        <a href="index.html">
+          <span>⌂</span>
+          CTR Overview
+        </a>
+
+        <a href="stations.html" class="active">
+          <span>🚉</span>
+          Station CTR
+        </a>
+
+        <a href="#">
+          <span>✎</span>
+          Alterations
+        </a>
+
+        <a href="#">
+          <span>⏳</span>
+          Pending Approvals
+        </a>
+
+        <a href="#">
+          <span>✓</span>
+          Approved CTR / PDFs
+        </a>
+
+        <a href="#">
+          <span>◷</span>
+          History
+        </a>
+
+        <a href="../index.html">
+          <span>←</span>
+          Back to Main Website
+        </a>
+
+      </nav>
+
+      <div class="sidebar-bottom">
+        <p>CTR Engineering Module</p>
+        <small>West Central Railway</small>
+      </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+      <header class="topbar">
+
+        <div>
+          <h1>Narsinghpur CTR</h1>
+          <p>Existing CTR Structure & Initial Data Entry</p>
+        </div>
+
+        <div class="user-area">
+
+          <div class="notification">
+            🔔
+          </div>
+
+          <div class="user">
+
+            <div class="avatar">
+              H
+            </div>
+
+            <div>
+              <strong>Staff User</strong>
+              <span>System Admin</span>
+            </div>
+
+          </div>
+
+        </div>
+
+      </header>
+
+
+      <section class="page-content">
+
+        <div class="breadcrumb">
+          IRWMM / CTR Module / Station CTR / Narsinghpur
+        </div>
+
+
+        <!-- STATION DESCRIPTION -->
+        <section class="station-detail-header">
+
+          <div>
+
+            <span class="hero-tag">
+              EXISTING CTR
+            </span>
+
+            <h2>
+              Narsinghpur
+            </h2>
+
+            <p>
+              Complete station CTR structure including CTR racks,
+              conductors and connected location boxes.
+            </p>
+
+          </div>
+
+          <div class="station-detail-actions">
+
+            <button type="button" disabled>
+              Initial Data Entry
+            </button>
+
+            <button type="button" disabled>
+              Modify CTR
+            </button>
+
+          </div>
+
+        </section>
+
+
+        <!-- STATION INFORMATION -->
+        <section class="station-summary-grid">
+
+          <div class="summary-card">
+            <span>Station</span>
+            <strong>Narsinghpur</strong>
+          </div>
+
+          <div class="summary-card">
+            <span>CTR Status</span>
+            <strong>Initial Setup</strong>
+          </div>
+
+          <div class="summary-card">
+            <span>Current Version</span>
+            <strong>Draft V0</strong>
+          </div>
+
+          <div class="summary-card">
+            <span>Conductor Status</span>
+            <strong>All SPARE</strong>
+          </div>
+
+        </section>
+
+
+        <!-- QUICK NAVIGATION -->
+        <section class="station-jump-nav">
+
+          <strong>Quick Navigation</strong>
+
+          <div>
+            <a href="#end-a">END A</a>
+            <a href="#rack-k1">K1</a>
+            <a href="#rack-k2">K2</a>
+            <a href="#locations-a">Locations A</a>
+            <a href="#end-b">END B</a>
+            <a href="#locations-b">Locations B</a>
+          </div>
+
+        </section>
+
+
+        <!-- END A -->
+        <section class="station-end-section" id="end-a">
+
+          <div class="end-heading">
+
+            <div>
+              <span>STATION SIDE</span>
+              <h2>END - A</h2>
+            </div>
+
+            <p>
+              CTR racks and location boxes for first end of station.
+            </p>
+
+          </div>
+
+
+          <!-- RACK K1 -->
+          <section class="ctr-rack-card" id="rack-k1">
+
+            <div class="rack-header">
+
+              <div>
+                <span>CTR RACK</span>
+                <h3>K1</h3>
+              </div>
+
+              <div class="rack-status">
+                All Conductors SPARE
+              </div>
+
+            </div>
+
+
+            <div class="rack-drawing">
+
+              <div class="rack-row-title">
+                ROW A
+              </div>
+
+              <div
+              class="terminal-strip"
+                id="k1-terminal-strip">
+              </div>
+
+            </div>
+
+          </section>
+          
+          <!-- INITIAL CTR DATA ENTRY PANEL -->
+<section class="terminal-editor" id="terminalEditor">
+
+  <div class="terminal-editor-header">
+
+    <div>
+      <span>INITIAL CTR DATA ENTRY</span>
+      <h3 id="selectedTerminalTitle">
+        Select a conductor
+      </h3>
+    </div>
+
+    <button
+      type="button"
+      id="closeTerminalEditor"
+      class="editor-close-btn"
+    >
+      ×
+    </button>
+
+  </div>
+
+
+  <div class="terminal-current-state">
+
+    <span>Current Status</span>
+    <strong id="currentTerminalStatus">
+      SPARE
+    </strong>
+
+  </div>
+
+
+  <div class="terminal-form-grid">
+
+    <div class="terminal-form-field">
+
+      <label for="circuitParticular">
+        Circuit / Signal Particular
+      </label>
+
+      <input
+        type="text"
+        id="circuitParticular"
+        placeholder="Example: S21 HR"
+      >
+
+    </div>
+
+
+    <div class="terminal-form-field">
+
+      <label for="locationBox">
+        Connected Location Box
+      </label>
+
+      <input
+        type="text"
+        id="locationBox"
+        placeholder="Example: LB-01"
+      >
+
+    </div>
+
+
+    <div class="terminal-form-field">
+
+      <label for="locationTerminal">
+        Location Terminal / Conductor
+      </label>
+
+      <input
+        type="text"
+        id="locationTerminal"
+        placeholder="Example: 14"
+      >
+
+    </div>
+
+
+    <div class="terminal-form-field">
+
+      <label for="terminalStatus">
+        Status
+      </label>
+
+      <select id="terminalStatus">
+
+        <option value="SPARE">
+          SPARE
+        </option>
+
+        <option value="IN USE">
+          IN USE
+        </option>
+
+      </select>
+
+    </div>
+
+  </div>
+
+
+  <div class="terminal-form-field full-width">
+
+    <label for="terminalRemarks">
+      Remarks
+    </label>
+
+    <textarea
+      id="terminalRemarks"
+      rows="3"
+      placeholder="Enter remarks if required"
+    ></textarea>
+
+  </div>
+
+
+  <div class="terminal-editor-actions">
+
+    <button
+      type="button"
+      class="secondary-action"
+      id="cancelTerminalEdit"
+    >
+      Cancel
+    </button>
+
+    <button
+      type="button"
+      class="primary-action"
+      id="saveTerminalPreview"
+    >
+      Save Initial Data
+    </button>
+
+  </div>
+
+</section>
+
+
+          <!-- RACK K2 -->
+          <section class="ctr-rack-card" id="rack-k2">
+
+            <div class="rack-header">
+
+              <div>
+                <span>CTR RACK</span>
+                <h3>K2</h3>
+              </div>
+
+              <div class="rack-status">
+                Initial Setup
+              </div>
+
+            </div>
+
+            <div class="rack-placeholder">
+              K2 rack structure will be added here.
+            </div>
+
+          </section>
+
+
+          <!-- LOCATION BOXES -->
+          <section class="location-section" id="locations-a">
+
+            <div class="location-heading">
+              <span>END A</span>
+              <h3>Location Boxes</h3>
+            </div>
+
+            <div class="location-grid">
+
+              <article class="location-card">
+                <span>LOCATION BOX</span>
+                <h4>LB-01</h4>
+                <p>Initial structure not configured.</p>
+              </article>
+
+              <article class="location-card">
+                <span>LOCATION BOX</span>
+                <h4>LB-02</h4>
+                <p>Initial structure not configured.</p>
+              </article>
+
+            </div>
+
+          </section>
+
+        </section>
+
+
+        <!-- END B -->
+        <section class="station-end-section" id="end-b">
+
+          <div class="end-heading">
+
+            <div>
+              <span>STATION SIDE</span>
+              <h2>END - B</h2>
+            </div>
+
+            <p>
+              CTR racks and location boxes for second end of station.
+            </p>
+
+          </div>
+
+
+          <section class="ctr-rack-card">
+
+            <div class="rack-header">
+
+              <div>
+                <span>CTR RACK</span>
+                <h3>Rack Structure</h3>
+              </div>
+
+              <div class="rack-status">
+                Not Configured
+              </div>
+
+            </div>
+
+            <div class="rack-placeholder">
+              END-B racks will be configured here.
+            </div>
+
+          </section>
+
+
+          <section class="location-section" id="locations-b">
+
+            <div class="location-heading">
+              <span>END B</span>
+              <h3>Location Boxes</h3>
+            </div>
+
+            <div class="location-grid">
+
+              <article class="location-card">
+                <span>LOCATION BOX</span>
+                <h4>Not Added</h4>
+                <p>Location structure will be configured later.</p>
+              </article>
+
+            </div>
+
+          </section>
+
+        </section>
+
+
+        <!-- VERSION AREA -->
+        <section class="station-version-strip">
+
+          <div>
+            <strong>Current State</strong>
+            <span>Initial CTR Data Entry</span>
+          </div>
+
+          <div>
+            <strong>Baseline</strong>
+            <span>Not Locked</span>
+          </div>
+
+          <div>
+            <strong>Alterations</strong>
+            <span>Disabled During Initial Setup</span>
+          </div>
+
+          <div>
+            <strong>History</strong>
+            <span>No Approved Versions Yet</span>
+          </div>
+
+        </section>
+
+      </section>
+
+    </main>
+
+    </div>
+
+     <script src="js/station.js"></script>
+
+</body>
+</html>
+/* ========================================
+ 

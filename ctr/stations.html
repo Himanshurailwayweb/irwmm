@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Station CTR | IRWMM</title>
+
+  <link rel="stylesheet" href="css/ctr.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <div class="brand">
+        <div class="brand-logo">IR</div>
+
+        <div>
+          <h2>IRWMM</h2>
+          <span>Railway Work Management</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-menu">
+
+        <a href="index.html">
+          <span>⌂</span>
+          CTR Overview
+        </a>
+
+        <a href="stations.html" class="active">
+          <span>🚉</span>
+          Station CTR
+        </a>
+
+        <a href="#">
+          <span>✎</span>
+          Alterations
+        </a>
+
+        <a href="#">
+          <span>⏳</span>
+          Pending Approvals
+        </a>
+
+        <a href="#">
+          <span>✓</span>
+          Approved CTR / PDFs
+        </a>
+
+        <a href="#">
+          <span>◷</span>
+          History
+        </a>
+
+        <a href="../index.html">
+          <span>←</span>
+          Back to Main Website
+        </a>
+
+      </nav>
+
+      <div class="sidebar-bottom">
+        <p>CTR Engineering Module</p>
+        <small>West Central Railway</small>
+      </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+      <!-- TOP BAR -->
+      <header class="topbar">
+
+        <div>
+          <h1>Station CTR</h1>
+          <p>Select a station to access its current CTR structure</p>
+        </div>
+
+        <div class="user-area">
+
+          <div class="notification">
+            🔔
+          </div>
+
+          <div class="user">
+
+            <div class="avatar">
+              H
+            </div>
+
+            <div>
+              <strong>Staff User</strong>
+              <span>Railway Employee</span>
+            </div>
+
+          </div>
+
+        </div>
+
+      </header>
+
+
+      <section class="page-content">
+
+        <div class="breadcrumb">
+          IRWMM / CTR Module / Station CTR
+        </div>
+
+
+        <!-- PAGE HEADER -->
+        <section class="station-page-header">
+
+          <div>
+
+            <span class="hero-tag">
+              STATION MANAGEMENT
+            </span>
+
+            <h2>
+              Existing CTR by Station
+            </h2>
+
+            <p>
+              Select a station to view its complete CTR rack,
+              conductor and location box arrangement.
+            </p>
+
+          </div>
+
+
+          <button class="add-station-btn" type="button" disabled>
+            + Add Station
+          </button>
+
+        </section>
+
+
+        <!-- SEARCH / FILTER -->
+        <section class="station-toolbar">
+
+          <div class="station-search">
+
+            <label for="stationSearch">
+              Search Station
+            </label>
+
+            <input
+              type="text"
+              id="stationSearch"
+              placeholder="Search by station name or code"
+            >
+
+          </div>
+
+
+          <div class="station-count">
+
+            <span>Total Stations</span>
+            <strong>1</strong>
+
+          </div>
+
+        </section>
+
+
+        <!-- STATION LIST -->
+        <section class="station-grid">
+
+          <article class="station-card">
+
+            <div class="station-card-top">
+
+              <div class="station-symbol">
+                🚉
+              </div>
+
+              <div class="station-status">
+                Initial Setup
+              </div>
+
+            </div>
+
+
+            <div class="station-card-content">
+
+              <span class="station-code">
+                DEMO STATION
+              </span>
+
+              <h3>
+                Narsinghpur
+              </h3>
+
+              <p>
+                Current CTR structure ready for initial
+                conductor data entry and testing.
+              </p>
+
+
+              <div class="station-meta">
+
+                <div>
+                  <span>CTR Status</span>
+                  <strong>Initial / Draft</strong>
+                </div>
+
+                <div>
+                  <span>Conductors</span>
+                  <strong>All Spare</strong>
+                </div>
+
+                <div>
+                  <span>Last Updated</span>
+                  <strong>Not Started</strong>
+                </div>
+
+              </div>
+
+
+              <a
+                href="station.html"
+                class="open-station-btn"
+              >
+                Open Station CTR →
+              </a>
+
+            </div>
+
+          </article>
+
+        </section>
+
+
+        <!-- INFORMATION -->
+        <section class="station-info-note">
+
+          <strong>Initial CTR Setup</strong>
+
+          <p>
+            During the initial setup stage, all conductors will
+            remain marked as SPARE. Existing approved CTR data
+            can then be entered conductor-by-conductor before
+            the station CTR is locked as the baseline version.
+          </p>
+
+        </section>
+
+      </section>
+
+    </main>
+
+  </div>
+
+
+  <script>
+
+    const searchInput =
+      document.getElementById("stationSearch");
+
+    const stationCards =
+      document.querySelectorAll(".station-card");
+
+
+    searchInput.addEventListener("input", function () {
+
+      const value =
+        searchInput.value.toLowerCase();
+
+      stationCards.forEach(function (card) {
+
+        const stationText =
+          card.innerText.toLowerCase();
+
+        if (stationText.includes(value)) {
+
+          card.style.display = "";
+
+        } else {
+
+          card.style.display = "none";
+
+        }
+
+      });
+
+    });
+
+  </script>
+
+</body>
+</html>
