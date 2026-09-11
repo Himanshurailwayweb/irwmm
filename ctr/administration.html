@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Administration | CTR Management</title>
+
+  <link
+    rel="stylesheet"
+    href="css/ctr.css"
+  >
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- =====================================================
+       SIDEBAR
+  ====================================================== -->
+
+  <aside class="sidebar">
+
+    <div class="sidebar-brand">
+
+      <div class="brand-mark">
+        CTR
+      </div>
+
+      <div>
+        <strong>CTR Management</strong>
+        <span>Engineering Module</span>
+      </div>
+
+    </div>
+
+
+    <nav class="sidebar-nav">
+
+      <a href="index.html">
+        <span>⌂</span>
+        CTR Overview
+      </a>
+
+      <a href="divisions.html">
+        <span>▦</span>
+        Divisions & Stations
+      </a>
+
+      <a href="alterations.html">
+        <span>✎</span>
+        Alterations
+      </a>
+
+      <a href="approvals.html">
+        <span>⌛</span>
+        Pending Approvals
+      </a>
+
+      <a href="approved.html">
+        <span>✓</span>
+        Approved CTR / PDFs
+      </a>
+
+      <a href="history.html">
+        <span>◷</span>
+        History
+      </a>
+
+      <a
+        href="administration.html"
+        class="active"
+      >
+        <span>⚙</span>
+        Administration
+      </a>
+
+      <a href="../index.html">
+        <span>←</span>
+        Back to Main Website
+      </a>
+
+    </nav>
+
+
+    <div class="sidebar-footer">
+
+      <strong>
+        CTR Engineering Module
+      </strong>
+
+      <span>
+        West Central Railway
+      </span>
+
+    </div>
+
+  </aside>
+
+
+  <!-- =====================================================
+       MAIN CONTENT
+  ====================================================== -->
+
+  <main class="main-content">
+
+    <header class="topbar">
+
+      <div>
+
+        <span class="eyebrow">
+          SYSTEM ADMINISTRATION
+        </span>
+
+        <h1>
+          User & Role Management
+        </h1>
+
+      </div>
+
+    </header>
+
+
+    <section class="page-content">
+
+      <!-- =================================================
+           PAGE HEADING
+      ================================================== -->
+
+      <section class="stations-page-heading">
+
+        <div>
+
+          <span>
+            ACCESS CONTROL
+          </span>
+
+          <h2>
+            Railway User Permissions
+          </h2>
+
+          <p>
+            Maintain railway user profiles and assign
+            authorized CTR responsibilities.
+          </p>
+
+        </div>
+
+      </section>
+
+
+      <!-- =================================================
+           SECURITY NOTICE
+      ================================================== -->
+
+      <section class="station-search-bar">
+
+        <div>
+
+          <strong>
+            Role-based Security
+          </strong>
+
+          <p style="margin:5px 0 0;">
+            Permissions are enforced by Supabase Row Level
+            Security and secure database functions.
+          </p>
+
+        </div>
+
+      </section>
+
+
+      <!-- =================================================
+           PROFILE EDIT PANEL
+      ================================================== -->
+
+      <section
+        class="add-station-panel"
+        id="profileEditPanel"
+      >
+
+        <div class="add-station-header">
+
+          <div>
+
+            <span>
+              RAILWAY USER PROFILE
+            </span>
+
+            <h3 id="profileEditTitle">
+              Edit User Profile
+            </h3>
+
+          </div>
+
+
+          <button
+            type="button"
+            id="closeProfileEdit"
+            class="editor-close-btn"
+            aria-label="Close Profile Editor"
+          >
+            ×
+          </button>
+
+        </div>
+
+
+        <div class="station-form-grid">
+
+          <div class="terminal-form-field">
+
+            <label for="profileFullName">
+              Full Name
+            </label>
+
+            <input
+              type="text"
+              id="profileFullName"
+              placeholder="Enter railway employee name"
+            >
+
+          </div>
+
+
+          <div class="terminal-form-field">
+
+            <label for="profileEmployeeNumber">
+              Employee Number
+            </label>
+
+            <input
+              type="text"
+              id="profileEmployeeNumber"
+              placeholder="Enter employee number"
+            >
+
+          </div>
+
+
+          <div class="terminal-form-field">
+
+            <label for="profileDesignation">
+              Designation
+            </label>
+
+            <input
+              type="text"
+              id="profileDesignation"
+              placeholder="Example: SSE/Signal/JBP"
+            >
+
+          </div>
+
+
+          <div class="terminal-form-field">
+
+            <label for="profilePhone">
+              Phone
+            </label>
+
+            <input
+              type="text"
+              id="profilePhone"
+              placeholder="Enter contact number"
+            >
+
+          </div>
+
+        </div>
+
+
+        <div class="add-station-actions">
+
+          <button
+            type="button"
+            id="cancelProfileEdit"
+            class="secondary-action"
+          >
+            Cancel
+          </button>
+
+
+          <button
+            type="button"
+            id="saveProfile"
+            class="primary-action"
+          >
+            Save Profile
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- =================================================
+           ROLE ASSIGNMENT PANEL
+      ================================================== -->
+
+      <section
+        class="add-station-panel"
+        id="roleAssignmentPanel"
+      >
+
+        <div class="add-station-header">
+
+          <div>
+
+            <span>
+              ROLE ASSIGNMENT
+            </span>
+
+            <h3>
+              Assign User Role
+            </h3>
+
+          </div>
+
+        </div>
+
+
+        <div class="station-form-grid">
+
+          <div class="terminal-form-field">
+
+            <label for="roleUser">
+              User
+            </label>
+
+            <select id="roleUser">
+
+              <option value="">
+                Select User
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div class="terminal-form-field">
+
+            <label for="roleCode">
+              Role
+            </label>
+
+            <select id="roleCode">
+
+              <option value="">
+                Select Role
+              </option>
+
+              <option value="SYSTEM_ADMIN">
+                System Administrator
+              </option>
+
+              <option value="STATION_USER">
+                Station User
+              </option>
+
+              <option value="EMPLOYEE">
+                Employee
+              </option>
+
+              <option value="REVIEW_OFFICER">
+                Review Officer
+              </option>
+
+              <option value="APPROVING_OFFICER">
+                Approving Officer
+              </option>
+
+              <option value="FINAL_SIGNATORY">
+                Final Signatory
+              </option>
+
+              <option value="CORRECTION_AUTHORITY">
+                Correction Authority
+              </option>
+
+              <option value="VIEWER">
+                Viewer
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            class="terminal-form-field"
+            id="roleScopeField"
+          >
+
+            <label for="roleScopeType">
+              Access Scope
+            </label>
+
+            <select id="roleScopeType">
+
+              <option value="">
+                Select Role First
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            class="terminal-form-field"
+            id="roleDivisionField"
+          >
+
+            <label for="roleDivision">
+              Division
+            </label>
+
+            <select id="roleDivision">
+
+              <option value="">
+                Select Division
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div
+            class="terminal-form-field"
+            id="roleStationField"
+          >
+
+            <label for="roleStation">
+              Station
+            </label>
+
+            <select id="roleStation">
+
+              <option value="">
+                Select Division First
+              </option>
+
+            </select>
+
+          </div>
+
+        </div>
+
+
+        <div class="add-station-actions">
+
+          <button
+            type="button"
+            id="clearRoleForm"
+            class="secondary-action"
+          >
+            Clear
+          </button>
+
+
+          <button
+            type="button"
+            id="assignRole"
+            class="primary-action"
+          >
+            Assign Role
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- =================================================
+           USER SEARCH
+      ================================================== -->
+
+      <section class="station-search-bar">
+
+        <input
+          type="text"
+          id="userSearch"
+          placeholder="Search employee, designation or role..."
+        >
+
+        <span id="userCount">
+          0 Users
+        </span>
+
+      </section>
+
+
+      <!-- =================================================
+           USER LIST
+      ================================================== -->
+
+      <section
+        class="station-list-grid"
+        id="userList"
+      >
+      </section>
+
+
+      <section
+        class="stations-empty-state"
+        id="usersEmptyState"
+      >
+
+        <strong>
+          No users found
+        </strong>
+
+        <p>
+          User profiles will appear after users are created
+          in Supabase Authentication.
+        </p>
+
+      </section>
+
+    </section>
+
+  </main>
+
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth-guard.js"></script>
+
+<!-- Common CTR role/access controller -->
+<script src="js/role-access.js"></script>
+
+<!-- Administration page logic -->
+<script src="js/administration.js"></script>
+
+</body>
+
+</html>
