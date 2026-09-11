@@ -5612,3 +5612,490 @@ button,
     font-size: 0.94rem;
   }
 }
+/* =========================================================
+   CTR DRAWING SAFE VISUAL CLEANUP
+   CSS ONLY - NO DATA / JS LOGIC CHANGE
+========================================================= */
+
+/* Remove grey hover block from terminal drawing */
+
+.terminal:hover,
+.terminal:focus,
+.terminal.in-use:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+
+/* Hide individual terminal remove X buttons.
+   Row/Column removal is handled by systematic toolbar. */
+
+.remove-conductor-btn {
+  display: none !important;
+}
+
+
+/* Hide individual fuse remove X buttons.
+   Row/Column removal is handled by systematic toolbar. */
+
+.pdf-fuse-remove {
+  display: none !important;
+}
+
+
+/* Keep row/column toolbar buttons clean */
+
+.systematic-grid-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+
+/* Slightly cleaner engineering drawing spacing */
+
+.pdf-fuse-strip {
+  column-gap: 8px !important;
+  row-gap: 14px !important;
+}
+
+
+/* Keep drawing background technical and plain */
+
+.pdf-fuse-item,
+.terminal,
+.dynamic-rack-row,
+.rack-fuse-section {
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+/* =========================================================
+   CTR TERMINAL HEADING - FINAL FIX
+========================================================= */
+
+body .rack-builder-toolbar h4 {
+  position: relative !important;
+
+  font-size: 0 !important;
+
+  color: transparent !important;
+
+  text-decoration: none !important;
+}
+
+body .rack-builder-toolbar h4::after {
+  content: "Row & Column Structure";
+
+  display: inline-block;
+
+  color: #111111 !important;
+
+  font-size: 17px !important;
+  font-weight: 700 !important;
+
+  line-height: 1.2 !important;
+
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+/* =========================================================
+   FUSE / TERMINAL HOVER CLEANUP
+   Technical drawing should stay plain white
+========================================================= */
+
+body .pdf-fuse-item:hover,
+body .pdf-fuse-item:focus,
+body .pdf-fuse-symbol-btn:hover,
+body .pdf-fuse-symbol-btn:focus,
+body .pdf-fuse-symbol-btn:active {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+body .terminal:hover,
+body .terminal:focus,
+body .terminal:active,
+body .terminal.in-use:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+/* =========================================================
+   CTR TERMINAL DRAWING - SAFE GEOMETRY CLEANUP
+   CSS ONLY
+========================================================= */
+
+/* Row drawing height/spacing */
+body .dynamic-rack-row,
+body .location-row-block {
+  position: relative !important;
+
+  display: grid !important;
+  grid-template-columns: 72px max-content !important;
+
+  column-gap: 10px !important;
+
+  min-height: 155px !important;
+
+  padding:
+    12px
+    12px
+    18px !important;
+
+  background: #ffffff !important;
+  box-shadow: none !important;
+
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
+
+/* A / B / C circle position */
+body .dynamic-row-header {
+  grid-column: 1 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding:
+    58px
+    0
+    0 !important;
+
+  margin: 0 !important;
+}
+
+
+body .dynamic-row-header h4,
+body .location-row-block .dynamic-row-header > strong {
+  width: 36px !important;
+  height: 36px !important;
+
+  min-width: 36px !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: 1px solid #333333 !important;
+  border-radius: 50% !important;
+
+  background: #ffffff !important;
+  color: #111111 !important;
+
+  font-size: 13px !important;
+  font-weight: 500 !important;
+
+  line-height: 1 !important;
+}
+
+
+/* Terminal strip */
+body .terminal-strip,
+body .dynamic-strip {
+  position: relative !important;
+
+  grid-column: 2 !important;
+
+  display: flex !important;
+  align-items: flex-start !important;
+
+  gap: 7px !important;
+
+  width: max-content !important;
+  min-width: 100% !important;
+
+  padding:
+    25px
+    22px
+    18px !important;
+
+  margin: 0 !important;
+
+  overflow: visible !important;
+
+  background: #ffffff !important;
+}
+
+
+/* Main horizontal CTR line */
+body .terminal-strip::before,
+body .dynamic-strip::before {
+  content: "" !important;
+
+  position: absolute !important;
+
+  left: 22px !important;
+  right: 22px !important;
+
+  top: 82px !important;
+
+  height: 1px !important;
+
+  background: #111111 !important;
+
+  z-index: 0 !important;
+}
+
+
+/* One terminal column */
+body .terminal {
+  position: relative !important;
+  z-index: 2 !important;
+
+  flex: 0 0 78px !important;
+
+  width: 78px !important;
+  min-width: 78px !important;
+
+  min-height: 105px !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+
+  margin: 0 !important;
+
+  padding:
+    0
+    3px !important;
+
+  border: 0 !important;
+  border-radius: 0 !important;
+
+  background: transparent !important;
+
+  box-shadow: none !important;
+}
+
+
+/* Particular / SPARE above terminal */
+body .terminal-particular {
+  order: 1 !important;
+
+  width: 72px !important;
+  max-width: 72px !important;
+
+  height: 25px !important;
+
+  display: flex !important;
+
+  align-items: flex-end !important;
+  justify-content: center !important;
+
+  margin: 0 !important;
+
+  padding:
+    0
+    2px
+    4px !important;
+
+  color: #111111 !important;
+
+  font-size: 9px !important;
+  font-weight: 500 !important;
+
+  line-height: 1.05 !important;
+
+  text-align: center !important;
+
+  white-space: normal !important;
+  overflow: hidden !important;
+}
+
+
+/* Terminal status */
+body .terminal strong {
+  order: 2 !important;
+
+  height: 12px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  color: #333333 !important;
+
+  font-size: 7px !important;
+  font-weight: 400 !important;
+
+  line-height: 1 !important;
+}
+
+
+/* Vertical conductor above connection point */
+body .terminal > .terminal-line:nth-child(2) {
+  order: 3 !important;
+
+  width: 1px !important;
+  height: 20px !important;
+
+  margin: 0 !important;
+
+  background: #111111 !important;
+}
+
+
+/* Circular connection point */
+body .terminal-point {
+  order: 4 !important;
+
+  width: 10px !important;
+  height: 10px !important;
+
+  min-width: 10px !important;
+  min-height: 10px !important;
+
+  margin: 0 !important;
+
+  border:
+    1.4px
+    solid
+    #111111 !important;
+
+  border-radius: 50% !important;
+
+  background: #ffffff !important;
+}
+
+
+/* Second extra terminal line not needed */
+body .terminal > .terminal-line:nth-child(4) {
+  display: none !important;
+}
+
+
+/* Terminal number below point */
+body .terminal-number {
+  order: 5 !important;
+
+  min-width: 22px !important;
+
+  margin-top: 6px !important;
+
+  padding: 0 !important;
+
+  background: #ffffff !important;
+
+  color: #111111 !important;
+
+  font-size: 9px !important;
+  font-weight: 500 !important;
+
+  line-height: 1 !important;
+
+  text-align: center !important;
+}
+
+
+/* Remove visual hover blocks completely */
+body .terminal:hover,
+body .terminal:focus,
+body .terminal:active {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+
+/* Hide old individual row controls */
+body .row-header-actions,
+body .remove-conductor-btn {
+  display: none !important;
+}
+/* =========================================================
+   CTR TERMINAL FINAL ALIGNMENT
+   SAFE CSS ONLY
+========================================================= */
+
+/* Row ko compact karo */
+body .dynamic-rack-row,
+body .location-row-block {
+  min-height: 125px !important;
+
+  padding:
+    10px
+    12px
+    12px !important;
+}
+
+
+/* A / B / C circle ko terminal line ke level par lao */
+body .dynamic-row-header {
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  padding: 0 !important;
+}
+
+
+body .dynamic-row-header h4,
+body .location-row-block .dynamic-row-header > strong {
+  margin-top: 64px !important;
+}
+
+
+/* Terminal columns slightly compact */
+body .terminal-strip,
+body .dynamic-strip {
+  gap: 5px !important;
+
+  padding:
+    25px
+    18px
+    14px !important;
+}
+
+
+/* Main horizontal line new padding ke according */
+body .terminal-strip::before,
+body .dynamic-strip::before {
+  left: 18px !important;
+  right: 18px !important;
+}
+
+
+/* Each terminal thoda narrower */
+body .terminal {
+  flex:
+    0
+    0
+    74px !important;
+
+  width:
+    74px !important;
+
+  min-width:
+    74px !important;
+
+  min-height:
+    100px !important;
+}
+
+
+/* SPARE / particular */
+body .terminal-particular {
+  width:
+    70px !important;
+
+  max-width:
+    70px !important;
+
+  font-size:
+    9px !important;
+}
+
+
+/* Terminal number slightly clearer */
+body .terminal-number {
+  font-size:
+    10px !important;
+
+  font-weight:
+    500 !important;
+}

@@ -40,10 +40,6 @@
       href: "administration.html",
       adminOnly: true
     },
-    {
-      label: "Main Website",
-      href: "../index.html"
-    }
   ];
 
 
