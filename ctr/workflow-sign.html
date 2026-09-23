@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>
+    CTR Digital Signing | CTR Management
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="css/ctr.css"
+  >
+
+
+  <style>
+
+    /* =====================================================
+       DIGITAL SIGNING WORKSPACE
+    ===================================================== */
+
+    .signing-page {
+
+      width: 100%;
+      max-width: 1450px;
+
+      margin: 0 auto;
+
+      padding: 28px 32px 60px;
+
+    }
+
+
+    /* =====================================================
+       BREADCRUMB
+    ===================================================== */
+
+    .signing-breadcrumb {
+
+      margin-bottom: 16px;
+
+      color: #567089;
+
+      font-size: 11px;
+
+    }
+
+
+    /* =====================================================
+       HERO
+    ===================================================== */
+
+    .signing-page .ctr-hero {
+
+      margin-bottom: 20px;
+
+    }
+
+
+    /* =====================================================
+       WORKSPACE STATUS
+    ===================================================== */
+
+    .signing-status {
+
+      margin-bottom: 16px;
+
+      padding: 12px 14px;
+
+      border:
+        1px solid #d3dde7;
+
+      background:
+        #f8fafc;
+
+      color:
+        #526b82;
+
+      font-size: 11px;
+
+    }
+
+
+    .signing-status[hidden] {
+
+      display: none;
+
+    }
+
+
+    /* =====================================================
+       SUMMARY
+    ===================================================== */
+
+    .signing-summary {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(
+          4,
+          minmax(0, 1fr)
+        );
+
+      gap: 12px;
+
+      margin-bottom: 20px;
+
+    }
+
+
+    .signing-summary-card {
+
+      min-height: 82px;
+
+      padding: 15px 17px;
+
+      border:
+        1px solid #d4dee8;
+
+      background:
+        #ffffff;
+
+    }
+
+
+    .signing-summary-card span {
+
+      display: block;
+
+      margin-bottom: 7px;
+
+      color: #748597;
+
+      font-size: 9px;
+
+      font-weight: 700;
+
+      letter-spacing: 0.6px;
+
+      text-transform: uppercase;
+
+    }
+
+
+    .signing-summary-card strong {
+
+      display: block;
+
+      color: #173e6e;
+
+      font-size: 13px;
+
+      line-height: 1.45;
+
+    }
+
+
+    .signing-summary-card small {
+
+      display: block;
+
+      margin-top: 4px;
+
+      color: #7a8b9b;
+
+      font-size: 9px;
+
+    }
+
+
+    /* =====================================================
+       GRID
+    ===================================================== */
+
+    .signing-workspace-grid {
+
+      display: grid;
+
+      grid-template-columns:
+        minmax(0, 1.35fr)
+        minmax(330px, 0.65fr);
+
+      gap: 18px;
+
+      align-items: start;
+
+    }
+
+
+    /* =====================================================
+       PANELS
+    ===================================================== */
+
+    .signing-panel {
+
+      margin-bottom: 18px;
+
+      border:
+        1px solid #ccd7e1;
+
+      background:
+        #ffffff;
+
+    }
+
+
+    .signing-panel-head {
+
+      display: flex;
+
+      align-items: flex-start;
+
+      justify-content: space-between;
+
+      gap: 14px;
+
+      padding: 14px 16px;
+
+      border-bottom:
+        1px solid #d9e1e8;
+
+      background:
+        #f3f6f9;
+
+    }
+
+
+    .signing-panel-head span {
+
+      display: block;
+
+      margin-bottom: 4px;
+
+      color: #748597;
+
+      font-size: 8px;
+
+      font-weight: 700;
+
+      letter-spacing: 0.65px;
+
+      text-transform: uppercase;
+
+    }
+
+
+    .signing-panel-head h3 {
+
+      margin: 0;
+
+      color: #234967;
+
+      font-size: 14px;
+
+    }
+
+
+    .signing-panel-body {
+
+      padding: 17px;
+
+    }
+
+
+    /* =====================================================
+       DOCUMENT INFORMATION
+    ===================================================== */
+
+    .document-register {
+
+      width: 100%;
+
+      border-collapse: collapse;
+
+    }
+
+
+    .document-register th,
+
+    .document-register td {
+
+      padding:
+        10px 9px;
+
+      border:
+        1px solid #dbe3ea;
+
+      font-size:
+        10px;
+
+      text-align:
+        left;
+
+      vertical-align:
+        top;
+
+    }
+
+
+    .document-register th {
+
+      width: 175px;
+
+      background:
+        #f7f9fb;
+
+      color:
+        #506a80;
+
+      font-weight:
+        700;
+
+    }
+
+
+    .document-register td {
+
+      color:
+        #344f65;
+
+    }
+
+
+    .document-hash {
+
+      display: block;
+
+      max-width: 100%;
+
+      overflow-wrap: anywhere;
+
+      font-family:
+        Consolas,
+        "Courier New",
+        monospace;
+
+      font-size: 9px;
+
+      line-height: 1.55;
+
+    }
+
+
+    /* =====================================================
+       BUTTONS
+    ===================================================== */
+
+    .signing-button-row {
+
+      display: flex;
+
+      align-items: center;
+
+      flex-wrap: wrap;
+
+      gap: 8px;
+
+      margin-top: 14px;
+
+    }
+
+
+    .signing-button-row button,
+
+    .signing-button-row a {
+
+      min-height: 36px;
+
+      display: inline-flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      padding:
+        0 13px;
+
+      border:
+        1px solid #bccbd8;
+
+      border-radius:
+        3px;
+
+      background:
+        #ffffff;
+
+      color:
+        #173e6e;
+
+      text-decoration:
+        none;
+
+      font-size:
+        10px;
+
+      font-weight:
+        700;
+
+      cursor:
+        pointer;
+
+    }
+
+
+    .signing-button-row button:hover,
+
+    .signing-button-row a:hover {
+
+      background:
+        #edf3f8;
+
+    }
+
+
+    .signing-button-row
+    .primary-signing-action {
+
+      border-color:
+        #315d87;
+
+      background:
+        #173e6e;
+
+      color:
+        #ffffff;
+
+    }
+
+
+    .signing-button-row
+    .primary-signing-action:hover {
+
+      background:
+        #12355d;
+
+    }
+
+
+    .signing-button-row
+    .primary-signing-action:disabled {
+
+      border-color:
+        #cbd4dd;
+
+      background:
+        #dfe5ea;
+
+      color:
+        #8996a1;
+
+      cursor:
+        default;
+
+    }
+
+
+    /* =====================================================
+       SIGNING PROCEDURE
+    ===================================================== */
+
+    .signing-process {
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 10px;
+
+    }
+
+
+    .signing-process-step {
+
+      display: grid;
+
+      grid-template-columns:
+        34px 1fr;
+
+      gap: 11px;
+
+      padding:
+        11px;
+
+      border:
+        1px solid #d7e0e8;
+
+      background:
+        #fafcfd;
+
+    }
+
+
+    .signing-process-number {
+
+      width: 30px;
+
+      height: 30px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      border:
+        1px solid #bacbd9;
+
+      border-radius:
+        50%;
+
+      background:
+        #ffffff;
+
+      color:
+        #173e6e;
+
+      font-size: 10px;
+
+      font-weight:
+        700;
+
+    }
+
+
+    .signing-process-step strong {
+
+      display: block;
+
+      margin-bottom: 4px;
+
+      color:
+        #294967;
+
+      font-size: 11px;
+
+    }
+
+
+    .signing-process-step p {
+
+      margin: 0;
+
+      color:
+        #6f8294;
+
+      font-size: 9px;
+
+      line-height: 1.55;
+
+    }
+
+
+    /* =====================================================
+       FORM
+    ===================================================== */
+
+    .signing-form-field {
+
+      margin-bottom: 14px;
+
+    }
+
+
+    .signing-form-field label {
+
+      display: block;
+
+      margin-bottom: 6px;
+
+      color:
+        #415f78;
+
+      font-size: 10px;
+
+      font-weight: 700;
+
+    }
+
+
+    .signing-form-field select,
+
+    .signing-form-field input,
+
+    .signing-form-field textarea {
+
+      width: 100%;
+
+      box-sizing: border-box;
+
+      border:
+        1px solid #c6d3df;
+
+      border-radius:
+        3px;
+
+      background:
+        #ffffff;
+
+      color:
+        #294967;
+
+      font-size:
+        10px;
+
+      outline:
+        none;
+
+    }
+
+
+    .signing-form-field select,
+
+    .signing-form-field input {
+
+      height: 38px;
+
+      padding:
+        0 10px;
+
+    }
+
+
+    .signing-form-field textarea {
+
+      min-height: 88px;
+
+      resize: vertical;
+
+      padding:
+        9px 10px;
+
+      line-height: 1.5;
+
+    }
+
+
+    .signing-form-field input:focus,
+
+    .signing-form-field select:focus,
+
+    .signing-form-field textarea:focus {
+
+      border-color:
+        #577da1;
+
+    }
+
+
+    .signing-form-field small {
+
+      display: block;
+
+      margin-top: 5px;
+
+      color:
+        #7b8c9b;
+
+      font-size: 8px;
+
+      line-height: 1.5;
+
+    }
+
+
+    /* =====================================================
+       FILE UPLOAD
+    ===================================================== */
+
+    .signed-file-box {
+
+      padding: 14px;
+
+      border:
+        1px dashed #aebfcd;
+
+      background:
+        #fafcfd;
+
+    }
+
+
+    .signed-file-box input[type="file"] {
+
+      height: auto;
+
+      padding: 8px;
+
+      background:
+        #ffffff;
+
+    }
+
+
+    .signed-file-result {
+
+      margin-top: 10px;
+
+      padding:
+        10px;
+
+      border:
+        1px solid #d9e2e9;
+
+      background:
+        #ffffff;
+
+      color:
+        #5b7185;
+
+      font-size: 9px;
+
+      line-height: 1.6;
+
+    }
+
+
+    .signed-file-result[hidden] {
+
+      display: none;
+
+    }
+
+
+    /* =====================================================
+       ROUTE
+    ===================================================== */
+
+    .signing-route {
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 7px;
+
+    }
+
+
+    .signing-route-step {
+
+      display: grid;
+
+      grid-template-columns:
+        35px 1fr auto;
+
+      align-items: center;
+
+      gap: 9px;
+
+      padding:
+        9px 10px;
+
+      border:
+        1px solid #d7e0e8;
+
+      background:
+        #ffffff;
+
+    }
+
+
+    .signing-route-order {
+
+      width: 27px;
+
+      height: 27px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      border:
+        1px solid #c4d1dc;
+
+      border-radius:
+        50%;
+
+      color:
+        #294967;
+
+      font-size:
+        9px;
+
+      font-weight:
+        700;
+
+    }
+
+
+    .signing-route-step strong {
+
+      display: block;
+
+      color:
+        #34546d;
+
+      font-size:
+        10px;
+
+    }
+
+
+    .signing-route-step small {
+
+      display: block;
+
+      margin-top: 2px;
+
+      color:
+        #788a9a;
+
+      font-size:
+        8px;
+
+    }
+
+
+    .signing-route-state {
+
+      padding:
+        4px 7px;
+
+      border:
+        1px solid #d2dce5;
+
+      border-radius:
+        3px;
+
+      background:
+        #f7f9fb;
+
+      color:
+        #6a7f91;
+
+      font-size:
+        8px;
+
+      font-weight:
+        700;
+
+      white-space: nowrap;
+
+    }
+
+
+    .signing-route-state.current {
+
+      border-color:
+        #bdd5c3;
+
+      background:
+        #f1f8f3;
+
+      color:
+        #3b6a48;
+
+    }
+
+
+    .signing-route-state.completed {
+
+      border-color:
+        #c7d5e1;
+
+      background:
+        #f2f6f9;
+
+      color:
+        #476880;
+
+    }
+
+
+    /* =====================================================
+       SECURITY NOTE
+    ===================================================== */
+
+    .signing-security-note {
+
+      padding:
+        13px 14px;
+
+      border-left:
+        3px solid #8fa8bf;
+
+      background:
+        #f7f9fb;
+
+      color:
+        #63788b;
+
+      font-size:
+        9px;
+
+      line-height:
+        1.65;
+
+    }
+
+
+    .signing-security-note strong {
+
+      color:
+        #294967;
+
+    }
+
+
+    /* =====================================================
+       RESPONSIVE
+    ===================================================== */
+
+    @media
+    (max-width: 1050px) {
+
+      .signing-workspace-grid {
+
+        grid-template-columns:
+          1fr;
+
+      }
+
+
+      .signing-summary {
+
+        grid-template-columns:
+          repeat(
+            2,
+            minmax(0, 1fr)
+          );
+
+      }
+
+    }
+
+
+    @media
+    (max-width: 700px) {
+
+      .signing-page {
+
+        padding:
+          20px 14px 45px;
+
+      }
+
+
+      .signing-summary {
+
+        grid-template-columns:
+          1fr;
+
+      }
+
+
+      .document-register th {
+
+        width: 120px;
+
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+  <div class="app">
+
+
+    <aside class="sidebar"></aside>
+
+
+    <main class="main-content">
+
+
+      <section class="signing-page">
+
+
+        <!-- =================================================
+             BREADCRUMB
+        ================================================== -->
+
+        <div class="signing-breadcrumb">
+
+          CTR Management /
+          Pending Approvals /
+          Digital Signing
+
+        </div>
+
+
+
+        <!-- =================================================
+             HERO
+        ================================================== -->
+
+        <section class="ctr-hero">
+
+
+          <div>
+
+            <span class="hero-tag">
+
+              CONTROLLED DOCUMENT WORKFLOW
+
+            </span>
+
+
+            <h2>
+
+              Digital Signing Workspace
+
+            </h2>
+
+
+            <p>
+
+              Review the current controlled CTR PDF,
+              complete the authorized digital-signature
+              process and continue the configured workflow.
+
+            </p>
+
+          </div>
+
+
+          <div class="hero-status">
+
+            <span>
+              Document State
+            </span>
+
+            <strong id="signingHeroStatus">
+              ● Loading
+            </strong>
+
+          </div>
+
+
+        </section>
+
+
+
+        <!-- =================================================
+             STATUS
+        ================================================== -->
+
+        <section
+          id="signingStatus"
+          class="signing-status"
+        >
+
+          Loading signing workspace...
+
+        </section>
+
+
+
+        <!-- =================================================
+             SUMMARY
+        ================================================== -->
+
+        <section class="signing-summary">
+
+
+          <article class="signing-summary-card">
+
+            <span>
+              Station
+            </span>
+
+            <strong id="signingStation">
+              —
+            </strong>
+
+            <small id="signingStationCode">
+              —
+            </small>
+
+          </article>
+
+
+          <article class="signing-summary-card">
+
+            <span>
+              CTR Record
+            </span>
+
+            <strong id="signingRecordName">
+              —
+            </strong>
+
+          </article>
+
+
+          <article class="signing-summary-card">
+
+            <span>
+              Current Stage
+            </span>
+
+            <strong id="signingCurrentStage">
+              —
+            </strong>
+
+            <small id="signingStepProgress">
+              —
+            </small>
+
+          </article>
+
+
+          <article class="signing-summary-card">
+
+            <span>
+              Assigned To
+            </span>
+
+            <strong id="signingAssignedName">
+              —
+            </strong>
+
+            <small id="signingAssignedDesignation">
+              —
+            </small>
+
+          </article>
+
+
+        </section>
+
+
+
+        <!-- =================================================
+             WORKSPACE GRID
+        ================================================== -->
+
+        <div class="signing-workspace-grid">
+
+
+          <!-- =================================================
+               LEFT COLUMN
+          ================================================== -->
+
+          <div>
+
+
+            <!-- ===============================================
+                 CURRENT CONTROLLED DOCUMENT
+            ================================================ -->
+
+            <section class="signing-panel">
+
+
+              <div class="signing-panel-head">
+
+                <div>
+
+                  <span>
+                    CONTROLLED DOCUMENT
+                  </span>
+
+                  <h3>
+                    Current CTR PDF
+                  </h3>
+
+                </div>
+
+              </div>
+
+
+              <div class="signing-panel-body">
+
+
+                <table class="document-register">
+
+                  <tbody>
+
+
+                    <tr>
+
+                      <th>
+                        Document Status
+                      </th>
+
+                      <td id="currentDocumentStatus">
+                        Loading...
+                      </td>
+
+                    </tr>
+
+
+                    <tr>
+
+                      <th>
+                        Document Type
+                      </th>
+
+                      <td id="currentDocumentType">
+                        —
+                      </td>
+
+                    </tr>
+
+
+                    <tr>
+
+                      <th>
+                        SHA-256
+                      </th>
+
+                      <td>
+
+                        <span
+                          id="currentDocumentHash"
+                          class="document-hash"
+                        >
+                          —
+                        </span>
+
+                      </td>
+
+                    </tr>
+
+
+                    <tr>
+
+                      <th>
+                        Last Signed
+                      </th>
+
+                      <td id="currentDocumentSignedAt">
+                        —
+                      </td>
+
+                    </tr>
+
+
+                  </tbody>
+
+                </table>
+
+
+                <div class="signing-button-row">
+
+
+                  <button
+                    type="button"
+                    id="openCurrentDocument"
+                    disabled
+                  >
+
+                    Open Current PDF
+
+                  </button>
+
+
+                  <button
+                    type="button"
+                    id="downloadCurrentDocument"
+                    disabled
+                  >
+
+                    Download for Digital Signing
+
+                  </button>
+
+
+                </div>
+
+
+              </div>
+
+
+            </section>
+
+
+
+            <!-- ===============================================
+                 SIGNING PROCEDURE
+            ================================================ -->
+
+            <section class="signing-panel">
+
+
+              <div class="signing-panel-head">
+
+                <div>
+
+                  <span>
+                    SIGNING PROCEDURE
+                  </span>
+
+                  <h3>
+                    Controlled Signing Process
+                  </h3>
+
+                </div>
+
+              </div>
+
+
+              <div class="signing-panel-body">
+
+
+                <div class="signing-process">
+
+
+                  <div class="signing-process-step">
+
+                    <div class="signing-process-number">
+                      1
+                    </div>
+
+                    <div>
+
+                      <strong>
+                        Review Current CTR PDF
+                      </strong>
+
+                      <p>
+                        Verify the drawing and the latest
+                        controlled document before signing.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+
+                  <div class="signing-process-step">
+
+                    <div class="signing-process-number">
+                      2
+                    </div>
+
+                    <div>
+
+                      <strong>
+                        Apply Authorized Digital Signature
+                      </strong>
+
+                      <p>
+                        Sign the controlled PDF through the
+                        approved DSC / eSign process. A typed
+                        or drawn image is not treated as a
+                        digital signature.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+
+                  <div class="signing-process-step">
+
+                    <div class="signing-process-number">
+                      3
+                    </div>
+
+                    <div>
+
+                      <strong>
+                        Upload Signed PDF
+                      </strong>
+
+                      <p>
+                        Upload the digitally signed result.
+                        The system will calculate and preserve
+                        its SHA-256 document hash.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+
+                  <div class="signing-process-step">
+
+                    <div class="signing-process-number">
+                      4
+                    </div>
+
+                    <div>
+
+                      <strong id="signingFinalProcessText">
+                        Forward to Next Officer
+                      </strong>
+
+                      <p id="signingFinalProcessDescription">
+                        The new signed PDF becomes the current
+                        controlled document and is forwarded
+                        to the next assigned officer.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+
+                </div>
+
+
+              </div>
+
+
+            </section>
+
+
+
+            <!-- ===============================================
+                 SIGNED PDF INPUT
+            ================================================ -->
+
+            <section class="signing-panel">
+
+
+              <div class="signing-panel-head">
+
+                <div>
+
+                  <span>
+                    SIGNED DOCUMENT
+                  </span>
+
+                  <h3>
+                    Register Digitally Signed PDF
+                  </h3>
+
+                </div>
+
+              </div>
+
+
+              <div class="signing-panel-body">
+
+
+                <div class="signing-form-field">
+
+                  <label for="signatureMethod">
+                    Digital Signature Method
+                  </label>
+
+                  <select id="signatureMethod">
+
+                    <option value="">
+                      Select Signing Method
+                    </option>
+
+                    <option value="DSC">
+                      Digital Signature Certificate (DSC)
+                    </option>
+
+                    <option value="ESIGN">
+                      Authorized eSign
+                    </option>
+
+                  </select>
+
+                </div>
+
+
+                <div class="signing-form-field">
+
+                  <label for="signatureReference">
+                    Signature / Transaction Reference
+                  </label>
+
+                  <input
+                    type="text"
+                    id="signatureReference"
+                    placeholder="Reference returned by the authorized signing process"
+                    autocomplete="off"
+                  >
+
+                  <small>
+                    This field must represent the real signing
+                    transaction or signed-document reference.
+                  </small>
+
+                </div>
+
+
+                <div class="signing-form-field">
+
+                  <label for="signedPdfFile">
+                    Digitally Signed PDF
+                  </label>
+
+                  <div class="signed-file-box">
+
+                    <input
+                      type="file"
+                      id="signedPdfFile"
+                      accept="application/pdf,.pdf"
+                    >
+
+                    <div
+                      id="signedFileResult"
+                      class="signed-file-result"
+                      hidden
+                    ></div>
+
+                  </div>
+
+                </div>
+
+
+                <div class="signing-form-field">
+
+                  <label for="signingRemarks">
+                    Remarks
+                  </label>
+
+                  <textarea
+                    id="signingRemarks"
+                    placeholder="Optional forwarding / approval remarks..."
+                  ></textarea>
+
+                </div>
+
+
+                <div class="signing-button-row">
+
+
+                  <button
+                    type="button"
+                    id="verifySignedDocument"
+                    disabled
+                  >
+
+                    Verify Signed PDF
+
+                  </button>
+
+
+                  <button
+                    type="button"
+                    id="completeSigningAction"
+                    class="primary-signing-action"
+                    disabled
+                  >
+
+                    Digital Sign & Forward
+
+                  </button>
+
+
+                </div>
+
+
+              </div>
+
+
+            </section>
+
+
+
+          </div>
+
+
+
+          <!-- =================================================
+               RIGHT COLUMN
+          ================================================== -->
+
+          <aside>
+
+
+            <!-- ===============================================
+                 APPROVAL ROUTE
+            ================================================ -->
+
+            <section class="signing-panel">
+
+
+              <div class="signing-panel-head">
+
+                <div>
+
+                  <span>
+                    APPROVAL ROUTE
+                  </span>
+
+                  <h3>
+                    Officer Sequence
+                  </h3>
+
+                </div>
+
+              </div>
+
+
+              <div class="signing-panel-body">
+
+
+                <div
+                  id="signingRoute"
+                  class="signing-route"
+                >
+
+                  <div class="signing-route-step">
+
+                    <div class="signing-route-order">
+                      —
+                    </div>
+
+                    <div>
+
+                      <strong>
+                        Loading route...
+                      </strong>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+
+              </div>
+
+
+            </section>
+
+
+
+            <!-- ===============================================
+                 DOCUMENT CHAIN
+            ================================================ -->
+
+            <section class="signing-panel">
+
+
+              <div class="signing-panel-head">
+
+                <div>
+
+                  <span>
+                    DOCUMENT HISTORY
+                  </span>
+
+                  <h3>
+                    Controlled PDF Chain
+                  </h3>
+
+                </div>
+
+              </div>
+
+
+              <div class="signing-panel-body">
+
+
+                <div
+                  id="signingDocumentChain"
+                  class="signing-route"
+                >
+
+                  <div class="signing-route-step">
+
+                    <div class="signing-route-order">
+                      —
+                    </div>
+
+                    <div>
+
+                      <strong>
+                        No document loaded
+                      </strong>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+
+              </div>
+
+
+            </section>
+
+
+
+            <!-- ===============================================
+                 SECURITY NOTE
+            ================================================ -->
+
+            <div class="signing-security-note">
+
+              <strong>
+                Document Integrity
+              </strong>
+
+              <br>
+
+              Every generated and digitally signed PDF is
+              retained as a separate controlled record.
+
+              Previous PDFs are not overwritten when another
+              officer signs or when a CTR is returned for
+              correction.
+
+              Final approval is permitted only on the latest
+              registered workflow document.
+
+            </div>
+
+
+          </aside>
+
+
+        </div>
+
+
+      </section>
+
+
+    </main>
+
+
+  </div>
+
+
+
+  <!-- =====================================================
+       SCRIPTS
+  ====================================================== -->
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+  ></script>
+
+  <script src="js/supabase-config.js"></script>
+
+  <script src="js/auth-guard.js"></script>
+
+  <script src="js/role-access.js"></script>
+
+  <script src="js/railway-shell.js"></script>
+
+  <script src="js/workflow-sign.js"></script>
+
+  <script src="js/ctr-pdf-generator.js"></script>
+
+
+</body>
+
+</html>

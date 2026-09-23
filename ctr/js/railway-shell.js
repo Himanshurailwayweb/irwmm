@@ -1798,3 +1798,1259 @@
   }
 
 })();
+/* =========================================================
+   ADMINISTRATION NAVIGATION VISIBILITY
+   SYSTEM_ADMIN ONLY
+========================================================= */
+
+(function () {
+
+  let adminVisibilityObserver = null;
+
+
+  function currentUserIsSystemAdmin() {
+
+    if (
+      !window.ctrAccess ||
+      !window.ctrAccess.ready
+    ) {
+      return false;
+    }
+
+
+    if (
+      typeof window.ctrAccess.isSystemAdmin ===
+      "function"
+    ) {
+
+      return Boolean(
+        window.ctrAccess.isSystemAdmin()
+      );
+
+    }
+
+
+    if (
+      typeof window.ctrAccess.getRoleCodes ===
+      "function"
+    ) {
+
+      const roles =
+        window.ctrAccess.getRoleCodes() || [];
+
+
+      return roles.includes(
+        "SYSTEM_ADMIN"
+      );
+
+    }
+
+
+    return false;
+  }
+
+
+  function findAdministrationLinks() {
+
+    const allLinks =
+      document.querySelectorAll(
+        "a"
+      );
+
+
+    return Array.from(
+      allLinks
+    )
+      .filter(
+        function (link) {
+
+          const href =
+            String(
+              link.getAttribute(
+                "href"
+              ) || ""
+            )
+              .toLowerCase();
+
+
+          const text =
+            String(
+              link.textContent || ""
+            )
+              .trim()
+              .toLowerCase();
+
+
+          return (
+            href.includes(
+              "administration.html"
+            ) ||
+            text ===
+              "administration"
+          );
+
+        }
+      );
+  }
+
+
+  function applyAdministrationVisibility() {
+
+    /*
+      Wait until role-access.js has
+      finished loading the user's roles.
+    */
+
+    if (
+      !window.ctrAccess ||
+      !window.ctrAccess.ready
+    ) {
+
+      return;
+    }
+
+
+    const isAdmin =
+      currentUserIsSystemAdmin();
+
+
+    const adminLinks =
+      findAdministrationLinks();
+
+
+    adminLinks.forEach(
+      function (link) {
+
+        if (isAdmin) {
+
+          link.hidden =
+            false;
+
+          link.style
+            .removeProperty(
+              "display"
+            );
+
+          link.removeAttribute(
+            "aria-hidden"
+          );
+
+        }
+
+        else {
+
+          link.hidden =
+            true;
+
+          link.style.setProperty(
+            "display",
+            "none",
+            "important"
+          );
+
+          link.setAttribute(
+            "aria-hidden",
+            "true"
+          );
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* -------------------------------------------------------
+     ROLE ACCESS READY
+  ------------------------------------------------------- */
+
+  window.addEventListener(
+    "ctr-access-ready",
+    function () {
+
+      applyAdministrationVisibility();
+
+    }
+  );
+
+
+  /* -------------------------------------------------------
+     NAVIGATION CAN BE CREATED DYNAMICALLY BY railway-shell.js
+
+     MutationObserver makes sure Administration is hidden
+     even if the menu is inserted after role loading.
+  ------------------------------------------------------- */
+
+  adminVisibilityObserver =
+    new MutationObserver(
+      function () {
+
+        applyAdministrationVisibility();
+
+      }
+    );
+
+
+  adminVisibilityObserver.observe(
+    document.documentElement,
+    {
+      childList:
+        true,
+
+      subtree:
+        true
+    }
+  );
+
+
+  /* -------------------------------------------------------
+     INITIAL CHECKS
+  ------------------------------------------------------- */
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+      applyAdministrationVisibility();
+
+    }
+  );
+
+
+  setTimeout(
+    applyAdministrationVisibility,
+    200
+  );
+
+
+  setTimeout(
+    applyAdministrationVisibility,
+    600
+  );
+
+
+  setTimeout(
+    applyAdministrationVisibility,
+    1200
+  );
+
+
+  setTimeout(
+    applyAdministrationVisibility,
+    2500
+  );
+
+})();
+/* =========================================================
+   CTR NOTIFICATION BELL
+   SYSTEM_ADMIN ONLY
+
+   - Shows unread notification count
+   - Opens full notifications.html page
+   - Does NOT use dropdown
+   - Existing railway header remains unchanged
+========================================================= */
+
+(function () {
+
+  "use strict";
+
+
+  let notificationRefreshTimer =
+    null;
+
+
+  /* =====================================================
+     SUPABASE CLIENT
+  ===================================================== */
+
+  function getNotificationSupabaseClient() {
+
+    try {
+
+      if (
+        typeof supabaseClient !==
+        "undefined"
+      ) {
+
+        return supabaseClient;
+
+      }
+
+    }
+
+    catch (error) {
+
+      console.warn(
+        "Notification client lookup:",
+        error
+      );
+
+    }
+
+
+    return null;
+
+  }
+
+
+  /* =====================================================
+     SYSTEM ADMIN CHECK
+  ===================================================== */
+
+  function notificationUserIsSystemAdmin() {
+
+    if (
+      !window.ctrAccess ||
+      !window.ctrAccess.ready
+    ) {
+
+      return false;
+
+    }
+
+
+    if (
+      typeof window.ctrAccess
+        .isSystemAdmin ===
+      "function"
+    ) {
+
+      return Boolean(
+        window.ctrAccess
+          .isSystemAdmin()
+      );
+
+    }
+
+
+    if (
+      typeof window.ctrAccess
+        .getRoleCodes ===
+      "function"
+    ) {
+
+      const roles =
+        window.ctrAccess
+          .getRoleCodes() ||
+        [];
+
+
+      return roles.includes(
+        "SYSTEM_ADMIN"
+      );
+
+    }
+
+
+    return false;
+
+  }
+
+
+  /* =====================================================
+     STYLES
+  ===================================================== */
+
+  function injectNotificationBellStyles() {
+
+    if (
+      document.getElementById(
+        "ctrNotificationBellStyles"
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    const style =
+      document.createElement(
+        "style"
+      );
+
+
+    style.id =
+      "ctrNotificationBellStyles";
+
+
+    style.textContent = `
+
+      #ctrRailwayHeader
+      .ctr-header-user {
+
+        position:
+          relative !important;
+
+        min-height:
+          44px !important;
+
+        padding-left:
+          54px !important;
+      }
+
+
+      #ctrNotificationBell {
+
+        position:
+          absolute;
+
+        top:
+          50%;
+
+        left:
+          8px;
+
+        transform:
+          translateY(-50%);
+
+        width:
+          36px;
+
+        height:
+          36px;
+
+        display:
+          inline-flex;
+
+        align-items:
+          center;
+
+        justify-content:
+          center;
+
+        padding:
+          0;
+
+        border:
+          1px solid #c5d1dc;
+
+        border-radius:
+          4px;
+
+        background:
+          #ffffff;
+
+        color:
+          #173e6e;
+
+        cursor:
+          pointer;
+
+        font-size:
+          17px;
+
+        line-height:
+          1;
+
+        box-shadow:
+          none;
+      }
+
+
+      #ctrNotificationBell:hover {
+
+        border-color:
+          #8ca2b7;
+
+        background:
+          #edf3f8;
+      }
+
+
+      #ctrNotificationBell:focus {
+
+        outline:
+          2px solid
+          rgba(
+            23,
+            62,
+            110,
+            0.20
+          );
+
+        outline-offset:
+          2px;
+      }
+
+
+      #ctrNotificationUnreadBadge {
+
+        position:
+          absolute;
+
+        top:
+          -6px;
+
+        right:
+          -6px;
+
+        min-width:
+          19px;
+
+        height:
+          19px;
+
+        display:
+          inline-flex;
+
+        align-items:
+          center;
+
+        justify-content:
+          center;
+
+        padding:
+          0 5px;
+
+        border:
+          2px solid #ffffff;
+
+        border-radius:
+          20px;
+
+        background:
+          #c62828;
+
+        color:
+          #ffffff;
+
+        font-size:
+          9px;
+
+        font-weight:
+          700;
+
+        line-height:
+          1;
+      }
+
+
+      #ctrNotificationUnreadBadge[hidden] {
+
+        display:
+          none !important;
+      }
+
+
+      @media
+      (max-width: 760px) {
+
+        #ctrRailwayHeader
+        .ctr-header-user {
+
+          display:
+            block !important;
+
+          min-width:
+            46px !important;
+
+          width:
+            46px !important;
+
+          padding:
+            0 !important;
+
+          border-left:
+            0 !important;
+        }
+
+
+        #ctrRailwayHeader
+        .ctr-header-user
+        > strong,
+
+        #ctrRailwayHeader
+        .ctr-header-user
+        > span {
+
+          display:
+            none !important;
+        }
+
+
+        #ctrNotificationBell {
+
+          position:
+            relative;
+
+          top:
+            auto;
+
+          left:
+            auto;
+
+          transform:
+            none;
+
+          margin:
+            2px 4px;
+        }
+
+      }
+
+    `;
+
+
+    document.head.appendChild(
+      style
+    );
+
+  }
+
+
+  /* =====================================================
+     CREATE BELL
+  ===================================================== */
+
+  function createNotificationBell() {
+
+    const userArea =
+      document.querySelector(
+        "#ctrRailwayHeader .ctr-header-user"
+      );
+
+
+    if (!userArea) {
+
+      return null;
+
+    }
+
+
+    let bell =
+      document.getElementById(
+        "ctrNotificationBell"
+      );
+
+
+    if (bell) {
+
+      return bell;
+
+    }
+
+
+    bell =
+      document.createElement(
+        "button"
+      );
+
+
+    bell.id =
+      "ctrNotificationBell";
+
+
+    bell.type =
+      "button";
+
+
+    bell.title =
+      "Notifications & Activity";
+
+
+    bell.setAttribute(
+      "aria-label",
+      "Open Notifications and Activity"
+    );
+
+
+    bell.hidden =
+      true;
+
+
+    bell.innerHTML = `
+
+      <span aria-hidden="true">
+        🔔
+      </span>
+
+      <span
+        id="ctrNotificationUnreadBadge"
+        hidden
+      ></span>
+
+    `;
+
+
+    bell.addEventListener(
+      "click",
+      function () {
+
+        window.location.href =
+          "notifications.html";
+
+      }
+    );
+
+
+    userArea.prepend(
+      bell
+    );
+
+
+    return bell;
+
+  }
+
+
+  /* =====================================================
+     UPDATE BADGE
+  ===================================================== */
+
+  async function updateNotificationBell() {
+
+    const bell =
+      createNotificationBell();
+
+
+    if (!bell) {
+
+      return;
+
+    }
+
+
+    const isAdmin =
+      notificationUserIsSystemAdmin();
+
+
+    if (!isAdmin) {
+
+      bell.hidden =
+        true;
+
+
+      bell.style
+        .setProperty(
+          "display",
+          "none",
+          "important"
+        );
+
+
+      return;
+
+    }
+
+
+    bell.hidden =
+      false;
+
+
+    bell.style
+      .removeProperty(
+        "display"
+      );
+
+
+    const badge =
+      document.getElementById(
+        "ctrNotificationUnreadBadge"
+      );
+
+
+    const client =
+      getNotificationSupabaseClient();
+
+
+    if (
+      !client ||
+      !badge
+    ) {
+
+      return;
+
+    }
+
+
+    try {
+
+      const {
+        count,
+        error
+      } =
+        await client
+          .from(
+            "notifications"
+          )
+          .select(
+            "id",
+            {
+              count:
+                "exact",
+
+              head:
+                true
+            }
+          )
+          .eq(
+            "is_read",
+            false
+          );
+
+
+      if (error) {
+
+        throw error;
+
+      }
+
+
+      const unread =
+        Number(
+          count ||
+          0
+        );
+
+
+      if (
+        unread > 0
+      ) {
+
+        badge.hidden =
+          false;
+
+
+        badge.textContent =
+          unread > 99
+            ? "99+"
+            : String(
+                unread
+              );
+
+
+        bell.title =
+          `${unread} unread notification${unread === 1 ? "" : "s"}`;
+
+      }
+
+      else {
+
+        badge.hidden =
+          true;
+
+        badge.textContent =
+          "";
+
+
+        bell.title =
+          "Notifications & Activity";
+
+      }
+
+    }
+
+    catch (error) {
+
+      console.error(
+        "Notification badge load error:",
+        error
+      );
+
+    }
+
+  }
+
+
+  /* =====================================================
+     AUTO REFRESH
+  ===================================================== */
+
+  function startNotificationBellRefresh() {
+
+    if (
+      notificationRefreshTimer
+    ) {
+
+      return;
+
+    }
+
+
+    notificationRefreshTimer =
+      window.setInterval(
+        function () {
+
+          if (
+            document.visibilityState ===
+            "visible"
+          ) {
+
+            updateNotificationBell();
+
+          }
+
+        },
+        30000
+      );
+
+  }
+
+
+  /* =====================================================
+     INITIALIZE
+  ===================================================== */
+
+  function initializeNotificationBell() {
+
+    injectNotificationBellStyles();
+
+    createNotificationBell();
+
+    updateNotificationBell();
+
+    startNotificationBellRefresh();
+
+  }
+
+
+  /* =====================================================
+     ROLE ACCESS READY
+  ===================================================== */
+
+  window.addEventListener(
+    "ctr-access-ready",
+    function () {
+
+      initializeNotificationBell();
+
+    }
+  );
+
+
+  /* =====================================================
+     PAGE SHOW
+  ===================================================== */
+
+  window.addEventListener(
+    "pageshow",
+    function () {
+
+      updateNotificationBell();
+
+    }
+  );
+
+
+  /* =====================================================
+     RETURN TO TAB
+  ===================================================== */
+
+  document.addEventListener(
+    "visibilitychange",
+    function () {
+
+      if (
+        document.visibilityState ===
+        "visible"
+      ) {
+
+        updateNotificationBell();
+
+      }
+
+    }
+  );
+
+
+  /* =====================================================
+     START
+  ===================================================== */
+
+  if (
+    document.readyState ===
+    "loading"
+  ) {
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      function () {
+
+        initializeNotificationBell();
+
+      }
+    );
+
+  }
+
+  else {
+
+    initializeNotificationBell();
+
+  }
+
+})();
+/* =========================================================
+   FIX NOTIFICATION BELL POSITION
+   Bell + User information in one clean row
+========================================================= */
+
+(function () {
+
+  const style =
+    document.createElement("style");
+
+  style.id =
+    "ctrNotificationBellPositionFix";
+
+  style.textContent = `
+
+    /* Give right-side user area enough width */
+
+    #ctrRailwayHeader
+    .ctr-main-navigation {
+
+      grid-template-columns:
+        175px
+        minmax(0, 1fr)
+        205px !important;
+    }
+
+
+    /* User block becomes proper two-column layout */
+
+    #ctrRailwayHeader
+    .ctr-header-user {
+
+      position:
+        relative !important;
+
+      display:
+        grid !important;
+
+      grid-template-columns:
+        40px
+        minmax(0, 1fr);
+
+      grid-template-rows:
+        auto
+        auto;
+
+      align-items:
+        center;
+
+      column-gap:
+        9px;
+
+      min-width:
+        0 !important;
+
+      min-height:
+        46px !important;
+
+      padding:
+        4px 0 4px 12px !important;
+
+      border-left:
+        1px solid #d1d8df !important;
+    }
+
+
+    /* Bell */
+
+    #ctrNotificationBell {
+
+      position:
+        relative !important;
+
+      top:
+        auto !important;
+
+      left:
+        auto !important;
+
+      right:
+        auto !important;
+
+      bottom:
+        auto !important;
+
+      transform:
+        none !important;
+
+      grid-column:
+        1;
+
+      grid-row:
+        1 / 3;
+
+      align-self:
+        center;
+
+      justify-self:
+        start;
+
+      width:
+        36px !important;
+
+      height:
+        36px !important;
+
+      margin:
+        0 !important;
+    }
+
+
+    /* User name */
+
+    #ctrRailwayHeader
+    .ctr-header-user
+    > strong {
+
+      grid-column:
+        2;
+
+      grid-row:
+        1;
+
+      align-self:
+        end;
+
+      width:
+        100%;
+
+      margin:
+        0 !important;
+
+      overflow:
+        hidden;
+
+      text-overflow:
+        ellipsis;
+
+      white-space:
+        nowrap;
+    }
+
+
+    /* Designation */
+
+    #ctrRailwayHeader
+    .ctr-header-user
+    > span {
+
+      grid-column:
+        2;
+
+      grid-row:
+        2;
+
+      align-self:
+        start;
+
+      width:
+        100%;
+
+      margin-top:
+        2px !important;
+
+      overflow:
+        hidden;
+
+      text-overflow:
+        ellipsis;
+
+      white-space:
+        nowrap;
+    }
+
+
+    /* Medium screen */
+
+    @media
+    (max-width: 1120px) {
+
+      #ctrRailwayHeader
+      .ctr-main-navigation {
+
+        grid-template-columns:
+          155px
+          minmax(0, 1fr)
+          190px !important;
+      }
+
+    }
+
+
+    /* Mobile */
+
+    @media
+    (max-width: 760px) {
+
+      #ctrRailwayHeader
+      .ctr-main-navigation {
+
+        display:
+          flex !important;
+      }
+
+
+      #ctrRailwayHeader
+      .ctr-nav-links {
+
+        flex:
+          1 1 auto;
+      }
+
+
+      #ctrRailwayHeader
+      .ctr-header-user {
+
+        display:
+          block !important;
+
+        flex:
+          0 0 44px;
+
+        width:
+          44px !important;
+
+        min-height:
+          40px !important;
+
+        padding:
+          2px 3px !important;
+
+        border-left:
+          1px solid #d1d8df !important;
+      }
+
+
+      #ctrRailwayHeader
+      .ctr-header-user
+      > strong,
+
+      #ctrRailwayHeader
+      .ctr-header-user
+      > span {
+
+        display:
+          none !important;
+      }
+
+
+      #ctrNotificationBell {
+
+        display:
+          inline-flex !important;
+
+        width:
+          36px !important;
+
+        height:
+          36px !important;
+      }
+
+    }
+
+  `;
+
+
+  document.head.appendChild(
+    style
+  );
+
+})();

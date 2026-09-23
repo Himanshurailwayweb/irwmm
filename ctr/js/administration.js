@@ -1,7 +1,17 @@
 /* =========================================================
    CTR MANAGEMENT SYSTEM
-   USER PROFILE + ROLE ADMINISTRATION
-   SECURE RPC VERSION
+   ADMINISTRATION / USER & ROLE MANAGEMENT
+
+   IMPORTANT SECURITY PRINCIPLE
+   ---------------------------------------------------------
+   Frontend controls are only UI convenience.
+
+   Actual authorization remains enforced by:
+   - Supabase Authentication
+   - PostgreSQL Row Level Security
+   - Secure database RPC functions
+
+   SYSTEM_ADMIN is the only role allowed to use this page.
 ========================================================= */
 
 
@@ -9,106 +19,100 @@
    DOM REFERENCES
 ========================================================= */
 
-const roleAssignmentPanel =
-  document.getElementById("roleAssignmentPanel");
-
 const roleUser =
-  document.getElementById("roleUser");
+  document.getElementById(
+    "roleUser"
+  );
 
 const roleCode =
-  document.getElementById("roleCode");
+  document.getElementById(
+    "roleCode"
+  );
 
 const roleScopeType =
-  document.getElementById("roleScopeType");
-
-const roleDivision =
-  document.getElementById("roleDivision");
+  document.getElementById(
+    "roleScopeType"
+  );
 
 const roleDivisionField =
-  document.getElementById("roleDivisionField");
+  document.getElementById(
+    "roleDivisionField"
+  );
 
-const roleStation =
-  document.getElementById("roleStation");
+const roleDivision =
+  document.getElementById(
+    "roleDivision"
+  );
 
 const roleStationField =
-  document.getElementById("roleStationField");
+  document.getElementById(
+    "roleStationField"
+  );
+
+const roleStation =
+  document.getElementById(
+    "roleStation"
+  );
+
+const roleMessage =
+  document.getElementById(
+    "roleMessage"
+  );
 
 const clearRoleFormButton =
-  document.getElementById("clearRoleForm");
+  document.getElementById(
+    "clearRoleForm"
+  );
 
 const assignRoleButton =
-  document.getElementById("assignRole");
+  document.getElementById(
+    "assignRole"
+  );
 
 const userSearch =
-  document.getElementById("userSearch");
+  document.getElementById(
+    "userSearch"
+  );
 
 const userCount =
-  document.getElementById("userCount");
+  document.getElementById(
+    "userCount"
+  );
 
 const userList =
-  document.getElementById("userList");
+  document.getElementById(
+    "userList"
+  );
 
 const usersEmptyState =
-  document.getElementById("usersEmptyState");
+  document.getElementById(
+    "usersEmptyState"
+  );
 
 
 /* =========================================================
-   PROFILE EDITOR DOM
+   STATE
 ========================================================= */
 
-const profileEditPanel =
-  document.getElementById("profileEditPanel");
+let administrationProfiles = [];
 
-const profileEditTitle =
-  document.getElementById("profileEditTitle");
+let administrationDivisions = [];
 
-const profileFullName =
-  document.getElementById("profileFullName");
+let administrationStations = [];
 
-const profileEmployeeNumber =
-  document.getElementById("profileEmployeeNumber");
+let administrationRoles = [];
 
-const profileDesignation =
-  document.getElementById("profileDesignation");
-
-const profilePhone =
-  document.getElementById("profilePhone");
-
-const closeProfileEditButton =
-  document.getElementById("closeProfileEdit");
-
-const cancelProfileEditButton =
-  document.getElementById("cancelProfileEdit");
-
-const saveProfileButton =
-  document.getElementById("saveProfile");
+let administrationStarted = false;
 
 
 /* =========================================================
-   APPLICATION STATE
-========================================================= */
-
-let currentUserId = null;
-
-let editingProfileUserId = null;
-
-let users = [];
-
-let divisions = [];
-
-let stations = [];
-
-let roles = [];
-
-
-/* =========================================================
-   ROLE CONFIGURATION
+   ROLE DEFINITIONS
 ========================================================= */
 
 const ROLE_LABELS = {
 
   SYSTEM_ADMIN:
-    "System Administrator",
+    "System Admin",
 
   STATION_USER:
     "Station User",
@@ -134,24 +138,23 @@ const ROLE_LABELS = {
 };
 
 
+const GLOBAL_ONLY_ROLES = [
+  "SYSTEM_ADMIN"
+];
+
+
 const STATION_ONLY_ROLES = [
   "STATION_USER",
   "EMPLOYEE"
 ];
 
 
-const OFFICER_SCOPE_ROLES = [
-
+const DIVISION_OR_STATION_ROLES = [
   "REVIEW_OFFICER",
-
   "APPROVING_OFFICER",
-
   "FINAL_SIGNATORY",
-
   "CORRECTION_AUTHORITY",
-
   "VIEWER"
-
 ];
 
 
@@ -159,258 +162,389 @@ const OFFICER_SCOPE_ROLES = [
    SAFE HTML
 ========================================================= */
 
-function escapeHtml(value) {
+function escapeHtml(
+  value
+) {
 
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+  return String(
+    value ?? ""
+  )
+    .replaceAll(
+      "&",
+      "&amp;"
+    )
+    .replaceAll(
+      "<",
+      "&lt;"
+    )
+    .replaceAll(
+      ">",
+      "&gt;"
+    )
+    .replaceAll(
+      '"',
+      "&quot;"
+    )
+    .replaceAll(
+      "'",
+      "&#039;"
+    );
 
 }
 
 
 /* =========================================================
-   USER DISPLAY NAME
+   MESSAGE
 ========================================================= */
 
-function getUserDisplayName(user) {
+function showRoleMessage(
+  message,
+  type = ""
+) {
 
-  if (!user) {
-
-    return "Unknown User";
-
+  if (!roleMessage) {
+    return;
   }
 
 
+  roleMessage.textContent =
+    message || "";
+
+
+  roleMessage.style.fontSize =
+    "13px";
+
+  roleMessage.style.fontWeight =
+    "600";
+
+
   if (
-    user.full_name &&
-    user.full_name.trim()
+    type ===
+    "success"
   ) {
 
-    return user.full_name.trim();
+    roleMessage.style.color =
+      "#15803d";
 
   }
 
-
-  if (
-    user.employee_number &&
-    user.employee_number.trim()
+  else if (
+    type ===
+    "error"
   ) {
+
+    roleMessage.style.color =
+      "#b42318";
+
+  }
+
+  else {
+
+    roleMessage.style.color =
+      "#52697f";
+
+  }
+
+}
+
+
+/* =========================================================
+   PROFILE DISPLAY NAME
+========================================================= */
+
+function getProfileDisplayName(
+  profile
+) {
+
+  const fullName =
+    String(
+      profile?.full_name ||
+      ""
+    )
+      .trim();
+
+
+  if (fullName) {
+    return fullName;
+  }
+
+
+  const employeeNumber =
+    String(
+      profile?.employee_number ||
+      ""
+    )
+      .trim();
+
+
+  if (employeeNumber) {
 
     return (
-      `Employee ${user.employee_number.trim()}`
+      "Employee " +
+      employeeNumber
     );
 
   }
+
+
+  const designation =
+    String(
+      profile?.designation ||
+      ""
+    )
+      .trim();
+
+
+  if (designation) {
+    return designation;
+  }
+
+
+  const shortId =
+    String(
+      profile?.id ||
+      ""
+    )
+      .slice(
+        0,
+        8
+      );
+
+
+  return shortId
+    ? `User ${shortId}`
+    : "Railway User";
+
+}
+
+
+/* =========================================================
+   ROLE LABEL
+========================================================= */
+
+function getRoleLabel(
+  roleCodeValue
+) {
+
+  return (
+    ROLE_LABELS[
+      roleCodeValue
+    ] ||
+    roleCodeValue ||
+    "-"
+  );
+
+}
+
+
+/* =========================================================
+   DIVISION NAME
+========================================================= */
+
+function getDivisionName(
+  divisionId
+) {
+
+  if (!divisionId) {
+    return "";
+  }
+
+
+  const division =
+    administrationDivisions
+      .find(
+        function (item) {
+
+          return (
+            item.id ===
+            divisionId
+          );
+
+        }
+      );
 
 
   return (
-    `User ${String(user.id).slice(0, 8)}`
+    division?.division_name ||
+    ""
   );
 
 }
 
 
 /* =========================================================
-   FIND HELPERS
+   STATION NAME
 ========================================================= */
 
-function findDivision(divisionId) {
+function getStationName(
+  stationId
+) {
 
-  return divisions.find(
-    function (division) {
-
-      return division.id === divisionId;
-
-    }
-  );
-
-}
-
-
-function findStation(stationId) {
-
-  return stations.find(
-    function (station) {
-
-      return station.id === stationId;
-
-    }
-  );
-
-}
-
-
-function findUser(userId) {
-
-  return users.find(
-    function (user) {
-
-      return user.id === userId;
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   VERIFY SYSTEM ADMIN
-========================================================= */
-
-async function verifySystemAdmin() {
-
-  try {
-
-    const {
-      data,
-      error
-    } =
-      await supabaseClient.auth.getUser();
-
-
-    if (
-      error ||
-      !data.user
-    ) {
-
-      window.location.replace(
-        "login.html"
-      );
-
-      return false;
-
-    }
-
-
-    currentUserId =
-      data.user.id;
-
-
-    const {
-      data: adminRole,
-      error: roleError
-    } =
-      await supabaseClient
-        .from("user_roles")
-        .select("id")
-        .eq(
-          "user_id",
-          currentUserId
-        )
-        .eq(
-          "role_code",
-          "SYSTEM_ADMIN"
-        )
-        .eq(
-          "is_active",
-          true
-        )
-        .is(
-          "station_id",
-          null
-        )
-        .is(
-          "division_id",
-          null
-        )
-        .maybeSingle();
-
-
-    if (roleError) {
-
-      throw roleError;
-
-    }
-
-
-    if (!adminRole) {
-
-      alert(
-        "System Administrator access is required."
-      );
-
-
-      window.location.replace(
-        "index.html"
-      );
-
-
-      return false;
-
-    }
-
-
-    return true;
-
+  if (!stationId) {
+    return "";
   }
 
-  catch (error) {
 
-    console.error(
-      "Administrator verification error:",
-      error
-    );
+  const station =
+    administrationStations
+      .find(
+        function (item) {
 
+          return (
+            item.id ===
+            stationId
+          );
 
-    alert(
-      "Unable to verify administrator access."
-    );
-
-
-    window.location.replace(
-      "index.html"
-    );
+        }
+      );
 
 
-    return false;
-
+  if (!station) {
+    return "";
   }
+
+
+  const stationCode =
+    station.station_code
+      ? ` (${station.station_code})`
+      : "";
+
+
+  return (
+    `${station.station_name}${stationCode}`
+  );
 
 }
 
 
 /* =========================================================
-   LOAD USERS
+   WAIT FOR ROLE-ACCESS.JS
 ========================================================= */
 
-async function loadUsers() {
+function waitForCtrAccess(
+  timeoutMs = 10000
+) {
+
+  return new Promise(
+    function (resolve) {
+
+      const startTime =
+        Date.now();
+
+
+      function checkAccess() {
+
+        if (
+          window.ctrAccess &&
+          window.ctrAccess.ready
+        ) {
+
+          resolve(
+            true
+          );
+
+          return;
+        }
+
+
+        if (
+          Date.now() -
+          startTime >=
+          timeoutMs
+        ) {
+
+          resolve(
+            false
+          );
+
+          return;
+        }
+
+
+        setTimeout(
+          checkAccess,
+          100
+        );
+
+      }
+
+
+      checkAccess();
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   SYSTEM ADMIN CHECK
+========================================================= */
+
+function isCurrentUserSystemAdmin() {
+
+  return Boolean(
+    window.ctrAccess &&
+    window.ctrAccess.ready &&
+    window.ctrAccess
+      .isSystemAdmin?.()
+  );
+
+}
+
+
+/* =========================================================
+   LOAD USER PROFILES
+========================================================= */
+
+async function loadUserProfiles() {
 
   const {
     data,
     error
   } =
     await supabaseClient
-      .from("user_profiles")
-      .select(`
-        id,
-        full_name,
-        employee_number,
-        phone,
-        designation,
-        is_active,
-        created_at,
-        updated_at
-      `)
-      .order(
-        "full_name",
-        {
-          ascending: true
-        }
+      .from(
+        "user_profiles"
+      )
+      .select(
+        `
+          id,
+          full_name,
+          employee_number,
+          phone,
+          designation,
+          is_active
+        `
       );
 
 
   if (error) {
-
     throw error;
-
   }
 
 
-  users =
-    data || [];
+  administrationProfiles =
+    (data || [])
+      .sort(
+        function (
+          first,
+          second
+        ) {
+
+          return (
+            getProfileDisplayName(
+              first
+            )
+              .localeCompare(
+                getProfileDisplayName(
+                  second
+                )
+              )
+          );
+
+        }
+      );
 
 }
 
@@ -419,22 +553,26 @@ async function loadUsers() {
    LOAD DIVISIONS
 ========================================================= */
 
-async function loadDivisions() {
+async function loadAdministrationDivisions() {
 
   const {
     data,
     error
   } =
     await supabaseClient
-      .from("divisions")
-      .select(`
-        id,
-        division_name,
-        division_code,
-        zone_name,
-        display_order,
-        is_active
-      `)
+      .from(
+        "divisions"
+      )
+      .select(
+        `
+          id,
+          division_name,
+          division_code,
+          zone_name,
+          display_order,
+          is_active
+        `
+      )
       .eq(
         "is_active",
         true
@@ -442,25 +580,25 @@ async function loadDivisions() {
       .order(
         "display_order",
         {
-          ascending: true
+          ascending:
+            true
         }
       )
       .order(
         "division_name",
         {
-          ascending: true
+          ascending:
+            true
         }
       );
 
 
   if (error) {
-
     throw error;
-
   }
 
 
-  divisions =
+  administrationDivisions =
     data || [];
 
 }
@@ -470,22 +608,25 @@ async function loadDivisions() {
    LOAD STATIONS
 ========================================================= */
 
-async function loadStations() {
+async function loadAdministrationStations() {
 
   const {
     data,
     error
   } =
     await supabaseClient
-      .from("stations")
-      .select(`
-        id,
-        station_name,
-        station_code,
-        division_id,
-        sectional_incharge_designation,
-        is_active
-      `)
+      .from(
+        "stations"
+      )
+      .select(
+        `
+          id,
+          station_name,
+          station_code,
+          division_id,
+          is_active
+        `
+      )
       .eq(
         "is_active",
         true
@@ -493,360 +634,99 @@ async function loadStations() {
       .order(
         "station_name",
         {
-          ascending: true
+          ascending:
+            true
         }
       );
 
 
   if (error) {
-
     throw error;
-
   }
 
 
-  stations =
+  administrationStations =
     data || [];
 
 }
 
 
 /* =========================================================
-   LOAD ROLES
+   LOAD ACTIVE USER ROLES
 ========================================================= */
 
-async function loadRoles() {
+async function loadAdministrationRoles() {
 
   const {
     data,
     error
   } =
     await supabaseClient
-      .from("user_roles")
-      .select(`
-        id,
-        user_id,
-        role_code,
-        station_id,
-        division_id,
-        is_active,
-        created_by,
-        created_at
-      `)
-      .order(
-        "created_at",
-        {
-          ascending: true
-        }
+      .from(
+        "user_roles"
+      )
+      .select(
+        `
+          id,
+          user_id,
+          role_code,
+          division_id,
+          station_id,
+          is_active
+        `
+      )
+      .eq(
+        "is_active",
+        true
       );
 
 
   if (error) {
-
     throw error;
-
   }
 
 
-  roles =
+  administrationRoles =
     data || [];
 
 }
 
 
 /* =========================================================
-   PROFILE EDITOR
+   POPULATE USER SELECT
 ========================================================= */
 
-function openProfileEditor(userId) {
+function populateUserSelect() {
 
-  const user =
-    findUser(userId);
-
-
-  if (!user) {
-
+  if (!roleUser) {
     return;
-
   }
 
 
-  editingProfileUserId =
-    user.id;
+  const oldValue =
+    roleUser.value;
 
-
-  profileEditTitle.textContent =
-    `Edit Profile — ${getUserDisplayName(user)}`;
-
-
-  profileFullName.value =
-    user.full_name || "";
-
-
-  profileEmployeeNumber.value =
-    user.employee_number || "";
-
-
-  profileDesignation.value =
-    user.designation || "";
-
-
-  profilePhone.value =
-    user.phone || "";
-
-
-  profileEditPanel.classList.add(
-    "open"
-  );
-
-
-  profileEditPanel.scrollIntoView({
-
-    behavior:
-      "smooth",
-
-    block:
-      "start"
-
-  });
-
-
-  setTimeout(
-    function () {
-
-      profileFullName.focus();
-
-    },
-    150
-  );
-
-}
-
-
-function closeProfileEditor() {
-
-  editingProfileUserId =
-    null;
-
-
-  profileEditPanel.classList.remove(
-    "open"
-  );
-
-
-  profileFullName.value =
-    "";
-
-
-  profileEmployeeNumber.value =
-    "";
-
-
-  profileDesignation.value =
-    "";
-
-
-  profilePhone.value =
-    "";
-
-}
-
-
-/* =========================================================
-   SAVE PROFILE
-========================================================= */
-
-async function saveUserProfile() {
-
-  if (!editingProfileUserId) {
-
-    alert(
-      "No user selected."
-    );
-
-    return;
-
-  }
-
-
-  const fullName =
-    profileFullName
-      .value
-      .trim();
-
-
-  const employeeNumber =
-    profileEmployeeNumber
-      .value
-      .trim();
-
-
-  const designation =
-    profileDesignation
-      .value
-      .trim();
-
-
-  const phone =
-    profilePhone
-      .value
-      .trim();
-
-
-  if (!fullName) {
-
-    alert(
-      "Full Name is required."
-    );
-
-
-    profileFullName.focus();
-
-
-    return;
-
-  }
-
-
-  saveProfileButton.disabled =
-    true;
-
-
-  saveProfileButton.textContent =
-    "Saving...";
-
-
-  try {
-
-    const {
-      data,
-      error
-    } =
-      await supabaseClient
-        .rpc(
-          "admin_update_user_profile",
-          {
-
-            p_user_id:
-              editingProfileUserId,
-
-            p_full_name:
-              fullName,
-
-            p_employee_number:
-              employeeNumber || null,
-
-            p_phone:
-              phone || null,
-
-            p_designation:
-              designation || null
-
-          }
-        );
-
-
-    if (error) {
-
-      throw error;
-
-    }
-
-
-    console.log(
-      "Profile update result:",
-      data
-    );
-
-
-    closeProfileEditor();
-
-
-    await loadUsers();
-
-
-    populateUserDropdown();
-
-
-    renderUsers();
-
-
-    alert(
-      "User profile updated successfully."
-    );
-
-  }
-
-  catch (error) {
-
-    console.error(
-      "Profile update error:",
-      error
-    );
-
-
-    if (
-      error.code === "23505"
-    ) {
-
-      alert(
-        "This employee number is already assigned to another user."
-      );
-
-    }
-
-    else {
-
-      alert(
-        error.message ||
-        "User profile could not be updated."
-      );
-
-    }
-
-  }
-
-  finally {
-
-    saveProfileButton.disabled =
-      false;
-
-
-    saveProfileButton.textContent =
-      "Save Profile";
-
-  }
-
-}
-
-
-/* =========================================================
-   POPULATE USERS
-========================================================= */
-
-function populateUserDropdown() {
 
   roleUser.innerHTML = `
-
     <option value="">
       Select User
     </option>
-
   `;
 
 
-  users
+  administrationProfiles
     .filter(
-      function (user) {
+      function (profile) {
 
         return (
-          user.is_active !== false
+          profile.is_active !==
+          false
         );
 
       }
     )
     .forEach(
-      function (user) {
+      function (profile) {
 
         const option =
           document.createElement(
@@ -855,23 +735,25 @@ function populateUserDropdown() {
 
 
         option.value =
-          user.id;
-
-
-        const employee =
-          user.employee_number
-            ? ` (${user.employee_number})`
-            : "";
+          profile.id;
 
 
         const designation =
-          user.designation
-            ? ` — ${user.designation}`
-            : "";
+          String(
+            profile.designation ||
+            ""
+          )
+            .trim();
 
 
         option.textContent =
-          `${getUserDisplayName(user)}${employee}${designation}`;
+          designation
+            ? `${getProfileDisplayName(
+                profile
+              )} — ${designation}`
+            : getProfileDisplayName(
+                profile
+              );
 
 
         roleUser.appendChild(
@@ -881,670 +763,714 @@ function populateUserDropdown() {
       }
     );
 
-}
 
+  if (
+    administrationProfiles
+      .some(
+        function (profile) {
 
-/* =========================================================
-   POPULATE DIVISIONS
-========================================================= */
+          return (
+            profile.id ===
+            oldValue
+          );
 
-function populateDivisionDropdown() {
+        }
+      )
+  ) {
 
-  roleDivision.innerHTML = `
-
-    <option value="">
-      Select Division
-    </option>
-
-  `;
-
-
-  divisions.forEach(
-    function (division) {
-
-      const option =
-        document.createElement(
-          "option"
-        );
-
-
-      option.value =
-        division.id;
-
-
-      const code =
-        division.division_code
-          ? ` (${division.division_code})`
-          : "";
-
-
-      option.textContent =
-        `${division.division_name}${code}`;
-
-
-      roleDivision.appendChild(
-        option
-      );
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   POPULATE STATIONS
-========================================================= */
-
-function populateStationDropdown() {
-
-  const divisionId =
-    roleDivision.value;
-
-
-  roleStation.innerHTML =
-    "";
-
-
-  if (!divisionId) {
-
-    roleStation.innerHTML = `
-
-      <option value="">
-        Select Division First
-      </option>
-
-    `;
-
-
-    roleStation.disabled =
-      true;
-
-
-    return;
+    roleUser.value =
+      oldValue;
 
   }
 
-
-  roleStation.disabled =
-    false;
+}
 
 
-  const firstOption =
-    document.createElement(
-      "option"
-    );
+/* =========================================================
+   POPULATE DIVISION SELECT
+========================================================= */
+
+function populateDivisionSelect() {
+
+  if (!roleDivision) {
+    return;
+  }
 
 
-  firstOption.value =
-    "";
+  const oldValue =
+    roleDivision.value;
 
 
-  firstOption.textContent =
-    "Select Station";
+  roleDivision.innerHTML = `
+    <option value="">
+      Select Division
+    </option>
+  `;
 
 
-  roleStation.appendChild(
-    firstOption
-  );
+  administrationDivisions
+    .forEach(
+      function (division) {
+
+        const option =
+          document.createElement(
+            "option"
+          );
 
 
-  const matchingStations =
-    stations.filter(
-      function (station) {
+        option.value =
+          division.id;
 
-        return (
-          station.division_id ===
-          divisionId
+
+        option.textContent =
+          division.division_code
+            ? `${division.division_name} (${division.division_code})`
+            : division.division_name;
+
+
+        roleDivision.appendChild(
+          option
         );
 
       }
     );
 
 
-  matchingStations.forEach(
-    function (station) {
+  if (
+    administrationDivisions
+      .some(
+        function (division) {
 
-      const option =
-        document.createElement(
-          "option"
-        );
+          return (
+            division.id ===
+            oldValue
+          );
+
+        }
+      )
+  ) {
+
+    roleDivision.value =
+      oldValue;
+
+  }
+
+}
 
 
-      option.value =
-        station.id;
+/* =========================================================
+   POPULATE STATION SELECT
+========================================================= */
+
+function populateStationSelect() {
+
+  if (!roleStation) {
+    return;
+  }
 
 
-      const code =
-        station.station_code
-          ? ` (${station.station_code})`
-          : "";
+  const selectedDivisionId =
+    roleDivision
+      ? roleDivision.value
+      : "";
 
 
-      option.textContent =
-        `${station.station_name}${code}`;
+  const previousValue =
+    roleStation.value;
 
 
-      roleStation.appendChild(
-        option
+  roleStation.innerHTML = `
+    <option value="">
+      ${
+        selectedDivisionId
+          ? "Select Station"
+          : "Select Division First"
+      }
+    </option>
+  `;
+
+
+  if (!selectedDivisionId) {
+
+    roleStation.disabled =
+      true;
+
+    return;
+
+  }
+
+
+  const filteredStations =
+    administrationStations
+      .filter(
+        function (station) {
+
+          return (
+            station.division_id ===
+            selectedDivisionId
+          );
+
+        }
       );
 
-    }
-  );
+
+  filteredStations
+    .forEach(
+      function (station) {
+
+        const option =
+          document.createElement(
+            "option"
+          );
+
+
+        option.value =
+          station.id;
+
+
+        option.textContent =
+          station.station_code
+            ? `${station.station_name} (${station.station_code})`
+            : station.station_name;
+
+
+        roleStation.appendChild(
+          option
+        );
+
+      }
+    );
+
+
+  roleStation.disabled =
+    false;
 
 
   if (
-    matchingStations.length ===
-    0
+    filteredStations
+      .some(
+        function (station) {
+
+          return (
+            station.id ===
+            previousValue
+          );
+
+        }
+      )
   ) {
 
+    roleStation.value =
+      previousValue;
+
+  }
+
+}
+
+
+/* =========================================================
+   CONFIGURE SCOPE OPTIONS
+========================================================= */
+
+function configureScopeOptions() {
+
+  if (
+    !roleCode ||
+    !roleScopeType
+  ) {
+
+    return;
+  }
+
+
+  const selectedRole =
+    roleCode.value;
+
+
+  let allowedScopes =
+    [];
+
+
+  if (
+    GLOBAL_ONLY_ROLES
+      .includes(
+        selectedRole
+      )
+  ) {
+
+    allowedScopes = [
+      "GLOBAL"
+    ];
+
+  }
+
+  else if (
+    STATION_ONLY_ROLES
+      .includes(
+        selectedRole
+      )
+  ) {
+
+    allowedScopes = [
+      "STATION"
+    ];
+
+  }
+
+  else if (
+    DIVISION_OR_STATION_ROLES
+      .includes(
+        selectedRole
+      )
+  ) {
+
+    allowedScopes = [
+      "DIVISION",
+      "STATION"
+    ];
+
+  }
+
+
+  Array
+    .from(
+      roleScopeType.options
+    )
+    .forEach(
+      function (option) {
+
+        if (
+          option.value ===
+          ""
+        ) {
+
+          option.disabled =
+            false;
+
+          return;
+        }
+
+
+        option.disabled =
+          !allowedScopes
+            .includes(
+              option.value
+            );
+
+      }
+    );
+
+
+  if (
+    allowedScopes.length ===
+    1
+  ) {
+
+    roleScopeType.value =
+      allowedScopes[0];
+
+  }
+
+  else if (
+    !allowedScopes
+      .includes(
+        roleScopeType.value
+      )
+  ) {
+
+    roleScopeType.value =
+      "";
+
+  }
+
+
+  updateScopeFields();
+
+}
+
+
+/* =========================================================
+   UPDATE SCOPE FIELDS
+========================================================= */
+
+function updateScopeFields() {
+
+  const scope =
+    roleScopeType
+      ? roleScopeType.value
+      : "";
+
+
+  /* -------------------------------------------------------
+     DIVISION FIELD
+  ------------------------------------------------------- */
+
+  if (roleDivisionField) {
+
+    roleDivisionField.hidden =
+      (
+        scope !==
+        "DIVISION" &&
+        scope !==
+        "STATION"
+      );
+
+  }
+
+
+  if (roleDivision) {
+
+    roleDivision.disabled =
+      (
+        scope !==
+        "DIVISION" &&
+        scope !==
+        "STATION"
+      );
+
+
+    if (
+      scope !==
+      "DIVISION" &&
+      scope !==
+      "STATION"
+    ) {
+
+      roleDivision.value =
+        "";
+
+    }
+
+  }
+
+
+  /* -------------------------------------------------------
+     STATION FIELD
+  ------------------------------------------------------- */
+
+  if (roleStationField) {
+
+    roleStationField.hidden =
+      (
+        scope !==
+        "STATION"
+      );
+
+  }
+
+
+  if (roleStation) {
+
+    if (
+      scope !==
+      "STATION"
+    ) {
+
+      roleStation.value =
+        "";
+
+      roleStation.disabled =
+        true;
+
+    }
+
+  }
+
+
+  if (
+    scope ===
+    "STATION"
+  ) {
+
+    populateStationSelect();
+
+  }
+
+}
+
+
+/* =========================================================
+   RESET ROLE FORM
+========================================================= */
+
+function clearRoleForm() {
+
+  if (roleUser) {
+    roleUser.value = "";
+  }
+
+
+  if (roleCode) {
+    roleCode.value = "";
+  }
+
+
+  if (roleScopeType) {
+    roleScopeType.value = "";
+  }
+
+
+  if (roleDivision) {
+    roleDivision.value = "";
+  }
+
+
+  if (roleStation) {
+
     roleStation.innerHTML = `
-
       <option value="">
-        No active stations in this division
+        Select Division First
       </option>
-
     `;
 
+    roleStation.value = "";
 
     roleStation.disabled =
       true;
 
   }
 
-}
 
+  configureScopeOptions();
 
-/* =========================================================
-   FIELD VISIBILITY
-========================================================= */
-
-function setFieldVisible(
-  field,
-  visible
-) {
-
-  if (!field) {
-
-    return;
-
-  }
-
-
-  field.style.display =
-    visible
-      ? ""
-      : "none";
+  showRoleMessage(
+    ""
+  );
 
 }
 
 
 /* =========================================================
-   ROLE SCOPE OPTIONS
+   VALIDATE ROLE FORM
 ========================================================= */
 
-function updateRoleScopeOptions() {
+function validateRoleAssignment() {
+
+  const selectedUserId =
+    roleUser
+      ? roleUser.value
+      : "";
 
   const selectedRole =
-    roleCode.value;
+    roleCode
+      ? roleCode.value
+      : "";
+
+  const selectedScope =
+    roleScopeType
+      ? roleScopeType.value
+      : "";
+
+  const selectedDivision =
+    roleDivision
+      ? roleDivision.value
+      : "";
+
+  const selectedStation =
+    roleStation
+      ? roleStation.value
+      : "";
 
 
-  roleScopeType.innerHTML =
-    "";
+  if (!selectedUserId) {
 
+    throw new Error(
+      "Please select a user."
+    );
 
-  roleDivision.value =
-    "";
-
-
-  roleStation.innerHTML = `
-
-    <option value="">
-      Select Division First
-    </option>
-
-  `;
-
-
-  roleStation.disabled =
-    true;
+  }
 
 
   if (!selectedRole) {
 
-    roleScopeType.innerHTML = `
-
-      <option value="">
-        Select Role First
-      </option>
-
-    `;
-
-
-    roleScopeType.disabled =
-      true;
-
-
-    setFieldVisible(
-      roleDivisionField,
-      false
+    throw new Error(
+      "Please select a role."
     );
-
-
-    setFieldVisible(
-      roleStationField,
-      false
-    );
-
-
-    return;
 
   }
 
 
-  roleScopeType.disabled =
-    false;
+  if (!selectedScope) {
+
+    throw new Error(
+      "Please select an access scope."
+    );
+
+  }
 
 
   if (
     selectedRole ===
-    "SYSTEM_ADMIN"
-  ) {
-
-    roleScopeType.innerHTML = `
-
-      <option value="GLOBAL">
-        Entire CTR System
-      </option>
-
-    `;
-
-
-    roleScopeType.value =
-      "GLOBAL";
-
-
-    setFieldVisible(
-      roleDivisionField,
-      false
-    );
-
-
-    setFieldVisible(
-      roleStationField,
-      false
-    );
-
-
-    return;
-
-  }
-
-
-  if (
-    STATION_ONLY_ROLES.includes(
-      selectedRole
-    )
-  ) {
-
-    roleScopeType.innerHTML = `
-
-      <option value="STATION">
-        Station
-      </option>
-
-    `;
-
-
-    roleScopeType.value =
-      "STATION";
-
-
-    setFieldVisible(
-      roleDivisionField,
-      true
-    );
-
-
-    setFieldVisible(
-      roleStationField,
-      true
-    );
-
-
-    return;
-
-  }
-
-
-  if (
-    OFFICER_SCOPE_ROLES.includes(
-      selectedRole
-    )
-  ) {
-
-    roleScopeType.innerHTML = `
-
-      <option value="">
-        Select Scope
-      </option>
-
-      <option value="DIVISION">
-        Division
-      </option>
-
-      <option value="STATION">
-        Station
-      </option>
-
-    `;
-
-
-    setFieldVisible(
-      roleDivisionField,
-      false
-    );
-
-
-    setFieldVisible(
-      roleStationField,
-      false
-    );
-
-  }
-
-}
-
-
-/* =========================================================
-   SCOPE FIELD DISPLAY
-========================================================= */
-
-function updateScopeFields() {
-
-  const scope =
-    roleScopeType.value;
-
-
-  if (
-    scope ===
+    "SYSTEM_ADMIN" &&
+    selectedScope !==
     "GLOBAL"
   ) {
 
-    setFieldVisible(
-      roleDivisionField,
-      false
+    throw new Error(
+      "System Admin must use Global scope."
     );
-
-
-    setFieldVisible(
-      roleStationField,
-      false
-    );
-
-
-    roleDivision.value =
-      "";
-
-
-    return;
 
   }
 
 
   if (
-    scope ===
-    "DIVISION"
-  ) {
-
-    setFieldVisible(
-      roleDivisionField,
-      true
-    );
-
-
-    setFieldVisible(
-      roleStationField,
-      false
-    );
-
-
-    roleStation.innerHTML = `
-
-      <option value="">
-        Select Station
-      </option>
-
-    `;
-
-
-    return;
-
-  }
-
-
-  if (
-    scope ===
-    "STATION"
-  ) {
-
-    setFieldVisible(
-      roleDivisionField,
-      true
-    );
-
-
-    setFieldVisible(
-      roleStationField,
-      true
-    );
-
-
-    populateStationDropdown();
-
-
-    return;
-
-  }
-
-
-  setFieldVisible(
-    roleDivisionField,
-    false
-  );
-
-
-  setFieldVisible(
-    roleStationField,
-    false
-  );
-
-}
-
-
-/* =========================================================
-   CLEAR ROLE FORM
-========================================================= */
-
-function clearRoleForm() {
-
-  roleUser.value =
-    "";
-
-
-  roleCode.value =
-    "";
-
-
-  roleDivision.value =
-    "";
-
-
-  roleStation.innerHTML = `
-
-    <option value="">
-      Select Division First
-    </option>
-
-  `;
-
-
-  roleStation.disabled =
-    true;
-
-
-  updateRoleScopeOptions();
-
-}
-
-
-/* =========================================================
-   ASSIGN ROLE - SECURE RPC
-========================================================= */
-
-async function assignRole() {
-
-  const userId =
-    roleUser.value;
-
-
-  const selectedRole =
-    roleCode.value;
-
-
-  const scope =
-    roleScopeType.value;
-
-
-  if (!userId) {
-
-    alert(
-      "Please select a user."
-    );
-
-    return;
-
-  }
-
-
-  if (!selectedRole) {
-
-    alert(
-      "Please select a role."
-    );
-
-    return;
-
-  }
-
-
-  if (!scope) {
-
-    alert(
-      "Please select an access scope."
-    );
-
-    return;
-
-  }
-
-
-  let stationId =
-    null;
-
-
-  let divisionId =
-    null;
-
-
-  if (
-    scope ===
-    "GLOBAL"
-  ) {
-
-    if (
-      selectedRole !==
-      "SYSTEM_ADMIN"
-    ) {
-
-      alert(
-        "Only System Administrator can have global access."
-      );
-
-      return;
-
-    }
-
-  }
-
-
-  else if (
-    scope ===
-    "DIVISION"
-  ) {
-
-    if (
-      !OFFICER_SCOPE_ROLES.includes(
+    STATION_ONLY_ROLES
+      .includes(
         selectedRole
-      )
-    ) {
-
-      alert(
-        "This role cannot be assigned at Division level."
-      );
-
-      return;
-
-    }
-
-
-    divisionId =
-      roleDivision.value;
-
-
-    if (!divisionId) {
-
-      alert(
-        "Please select a Division."
-      );
-
-      return;
-
-    }
-
-  }
-
-
-  else if (
-    scope ===
+      ) &&
+    selectedScope !==
     "STATION"
   ) {
 
-    stationId =
-      roleStation.value;
-
-
-    if (!stationId) {
-
-      alert(
-        "Please select a Station."
-      );
-
-      return;
-
-    }
-
-
-    divisionId =
-      null;
+    throw new Error(
+      `${getRoleLabel(
+        selectedRole
+      )} must use Station scope.`
+    );
 
   }
 
 
-  else {
+  if (
+    DIVISION_OR_STATION_ROLES
+      .includes(
+        selectedRole
+      ) &&
+    ![
+      "DIVISION",
+      "STATION"
+    ]
+      .includes(
+        selectedScope
+      )
+  ) {
 
-    alert(
-      "Invalid access scope."
+    throw new Error(
+      `${getRoleLabel(
+        selectedRole
+      )} must use Division or Station scope.`
+    );
+
+  }
+
+
+  if (
+    selectedScope ===
+    "DIVISION" &&
+    !selectedDivision
+  ) {
+
+    throw new Error(
+      "Please select a division."
+    );
+
+  }
+
+
+  if (
+    selectedScope ===
+    "STATION"
+  ) {
+
+    if (!selectedDivision) {
+
+      throw new Error(
+        "Please select a division first."
+      );
+
+    }
+
+
+    if (!selectedStation) {
+
+      throw new Error(
+        "Please select a station."
+      );
+
+    }
+
+
+    const station =
+      administrationStations
+        .find(
+          function (item) {
+
+            return (
+              item.id ===
+              selectedStation
+            );
+
+          }
+        );
+
+
+    if (
+      !station ||
+      station.division_id !==
+      selectedDivision
+    ) {
+
+      throw new Error(
+        "Selected station does not belong to the selected division."
+      );
+
+    }
+
+  }
+
+
+  return {
+
+    userId:
+      selectedUserId,
+
+    roleCode:
+      selectedRole,
+
+    scope:
+      selectedScope,
+
+    /*
+      IMPORTANT:
+      A role is either global, division-scoped
+      OR station-scoped.
+
+      For station scope we use station_id only.
+      division_id is kept null in user_roles so
+      we do not create two scopes at the same time.
+    */
+
+    divisionId:
+      selectedScope ===
+      "DIVISION"
+        ? selectedDivision
+        : null,
+
+    stationId:
+      selectedScope ===
+      "STATION"
+        ? selectedStation
+        : null
+
+  };
+
+}
+
+
+/* =========================================================
+   ASSIGN ROLE
+   SECURE DATABASE RPC
+========================================================= */
+
+async function assignUserRole() {
+
+  if (
+    !isCurrentUserSystemAdmin()
+  ) {
+
+    showRoleMessage(
+      "System Admin permission required for this action.",
+      "error"
     );
 
     return;
@@ -1552,12 +1478,43 @@ async function assignRole() {
   }
 
 
-  assignRoleButton.disabled =
-    true;
+  let assignment;
 
 
-  assignRoleButton.textContent =
-    "Assigning...";
+  try {
+
+    assignment =
+      validateRoleAssignment();
+
+  }
+
+  catch (error) {
+
+    showRoleMessage(
+      error.message,
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  if (assignRoleButton) {
+
+    assignRoleButton.disabled =
+      true;
+
+    assignRoleButton.textContent =
+      "Assigning...";
+
+  }
+
+
+  showRoleMessage(
+    "Assigning role...",
+    ""
+  );
 
 
   try {
@@ -1572,72 +1529,117 @@ async function assignRole() {
           {
 
             p_user_id:
-              userId,
+              assignment.userId,
 
             p_role_code:
-              selectedRole,
+              assignment.roleCode,
 
             p_station_id:
-              stationId || null,
+              assignment.stationId,
 
             p_division_id:
-              divisionId || null
+              assignment.divisionId
 
           }
         );
 
 
     if (error) {
-
       throw error;
+    }
+
+
+    if (
+      data &&
+      typeof data ===
+      "object" &&
+      data.success ===
+      false
+    ) {
+
+      throw new Error(
+        data.message ||
+        "Role could not be assigned."
+      );
 
     }
 
 
-    console.log(
-      "Role assignment result:",
-      data
+    showRoleMessage(
+      "Role assigned successfully.",
+      "success"
     );
 
 
-    await loadRoles();
-
-
-    clearRoleForm();
-
+    await loadAdministrationRoles();
 
     renderUsers();
 
 
-    alert(
-      "Role assigned successfully."
-    );
+    /*
+      Keep selected user visible so another role
+      can be assigned if required.
+    */
+
+    if (roleCode) {
+      roleCode.value = "";
+    }
+
+
+    if (roleScopeType) {
+      roleScopeType.value = "";
+    }
+
+
+    if (roleDivision) {
+      roleDivision.value = "";
+    }
+
+
+    if (roleStation) {
+
+      roleStation.value = "";
+
+      roleStation.innerHTML = `
+        <option value="">
+          Select Division First
+        </option>
+      `;
+
+    }
+
+
+    configureScopeOptions();
 
   }
 
   catch (error) {
 
     console.error(
-      "Role assignment error:",
+      "Assign role error:",
       error
     );
 
 
-    alert(
+    showRoleMessage(
       error.message ||
-      "Role could not be assigned."
+      "Role could not be assigned.",
+      "error"
     );
 
   }
 
   finally {
 
-    assignRoleButton.disabled =
-      false;
+    if (assignRoleButton) {
 
+      assignRoleButton.disabled =
+        false;
 
-    assignRoleButton.textContent =
-      "Assign Role";
+      assignRoleButton.textContent =
+        "Assign Role";
+
+    }
 
   }
 
@@ -1645,145 +1647,82 @@ async function assignRole() {
 
 
 /* =========================================================
-   ROLE SCOPE LABEL
+   DEACTIVATE ROLE
+   SECURE DATABASE RPC
 ========================================================= */
 
-function getRoleScopeLabel(role) {
-
-  if (
-    !role.station_id &&
-    !role.division_id
-  ) {
-
-    return "Entire CTR System";
-
-  }
-
-
-  if (
-    role.division_id
-  ) {
-
-    const division =
-      findDivision(
-        role.division_id
-      );
-
-
-    if (!division) {
-
-      return "Unknown Division";
-
-    }
-
-
-    const code =
-      division.division_code
-        ? ` (${division.division_code})`
-        : "";
-
-
-    return (
-      `${division.division_name}${code}`
-    );
-
-  }
-
-
-  if (
-    role.station_id
-  ) {
-
-    const station =
-      findStation(
-        role.station_id
-      );
-
-
-    if (!station) {
-
-      return "Unknown Station";
-
-    }
-
-
-    const code =
-      station.station_code
-        ? ` (${station.station_code})`
-        : "";
-
-
-    const division =
-      findDivision(
-        station.division_id
-      );
-
-
-    const divisionName =
-      division
-        ? ` — ${division.division_name}`
-        : "";
-
-
-    return (
-      `${station.station_name}${code}${divisionName}`
-    );
-
-  }
-
-
-  return "Unknown Scope";
-
-}
-
-
-/* =========================================================
-   DEACTIVATE ROLE - SECURE RPC
-========================================================= */
-
-async function deactivateRole(
+async function deactivateUserRole(
   roleId
 ) {
 
-  const selectedRole =
-    roles.find(
-      function (role) {
+  if (
+    !isCurrentUserSystemAdmin()
+  ) {
 
-        return (
-          String(role.id) ===
-          String(roleId)
-        );
-
-      }
+    alert(
+      "System Admin permission required for this action."
     );
-
-
-  if (!selectedRole) {
 
     return;
 
   }
 
 
-  const roleName =
-    ROLE_LABELS[
-      selectedRole.role_code
-    ] ||
-    selectedRole.role_code;
+  const role =
+    administrationRoles
+      .find(
+        function (item) {
+
+          return (
+            String(
+              item.id
+            ) ===
+            String(
+              roleId
+            )
+          );
+
+        }
+      );
+
+
+  if (!role) {
+    return;
+  }
+
+
+  const profile =
+    administrationProfiles
+      .find(
+        function (item) {
+
+          return (
+            item.id ===
+            role.user_id
+          );
+
+        }
+      );
+
+
+  const userName =
+    profile
+      ? getProfileDisplayName(
+          profile
+        )
+      : "this user";
 
 
   const confirmed =
     confirm(
-
-      `Deactivate ${roleName}?\n\nScope: ${getRoleScopeLabel(selectedRole)}`
-
+      `Deactivate ${getRoleLabel(
+        role.role_code
+      )} role for ${userName}?`
     );
 
 
   if (!confirmed) {
-
     return;
-
   }
 
 
@@ -1799,33 +1738,43 @@ async function deactivateRole(
           {
 
             p_role_id:
-              String(roleId)
+              String(
+                roleId
+              )
 
           }
         );
 
 
     if (error) {
-
       throw error;
+    }
+
+
+    if (
+      data &&
+      typeof data ===
+      "object" &&
+      data.success ===
+      false
+    ) {
+
+      throw new Error(
+        data.message ||
+        "Role could not be deactivated."
+      );
 
     }
 
 
-    console.log(
-      "Role deactivation result:",
-      data
-    );
-
-
-    await loadRoles();
-
+    await loadAdministrationRoles();
 
     renderUsers();
 
 
-    alert(
-      "Role deactivated successfully."
+    showRoleMessage(
+      "Role deactivated successfully.",
+      "success"
     );
 
   }
@@ -1833,7 +1782,7 @@ async function deactivateRole(
   catch (error) {
 
     console.error(
-      "Role deactivation error:",
+      "Deactivate role error:",
       error
     );
 
@@ -1849,802 +1798,615 @@ async function deactivateRole(
 
 
 /* =========================================================
-   SELECT USER FOR ROLE
+   ROLE SCOPE DESCRIPTION
 ========================================================= */
 
-function selectUserForRole(
-  userId
+function getRoleScopeText(
+  role
 ) {
 
-  roleUser.value =
-    userId;
+  if (
+    role.station_id
+  ) {
+
+    return (
+      "Station: " +
+      (
+        getStationName(
+          role.station_id
+        ) ||
+        "Assigned Station"
+      )
+    );
+
+  }
 
 
-  roleAssignmentPanel.scrollIntoView({
+  if (
+    role.division_id
+  ) {
 
-    behavior:
-      "smooth",
+    return (
+      "Division: " +
+      (
+        getDivisionName(
+          role.division_id
+        ) ||
+        "Assigned Division"
+      )
+    );
 
-    block:
-      "start"
+  }
 
-  });
+
+  if (
+    role.role_code ===
+    "SYSTEM_ADMIN"
+  ) {
+
+    return "Global Access";
+
+  }
+
+
+  return "Scope Not Available";
 
 }
 
 
 /* =========================================================
-   RENDER USERS
+   RENDER USER DIRECTORY
 ========================================================= */
 
 function renderUsers() {
 
-  const searchTerm =
-    userSearch
-      .value
-      .trim()
-      .toLowerCase();
-
-
-  const filteredUsers =
-    users.filter(
-      function (user) {
-
-        const activeRoles =
-          roles.filter(
-            function (role) {
-
-              return (
-                role.user_id === user.id &&
-                role.is_active === true
-              );
-
-            }
-          );
-
-
-        const roleText =
-          activeRoles
-            .map(
-              function (role) {
-
-                return (
-
-                  (
-                    ROLE_LABELS[
-                      role.role_code
-                    ] ||
-                    role.role_code
-                  ) +
-
-                  " " +
-
-                  getRoleScopeLabel(
-                    role
-                  )
-
-                );
-
-              }
-            )
-            .join(" ");
-
-
-        const searchable =
-          [
-
-            user.full_name || "",
-
-            user.employee_number || "",
-
-            user.designation || "",
-
-            user.phone || "",
-
-            roleText
-
-          ]
-            .join(" ")
-            .toLowerCase();
-
-
-        return searchable.includes(
-          searchTerm
-        );
-
-      }
-    );
-
-
-  userCount.textContent =
-    `${filteredUsers.length} ${
-      filteredUsers.length === 1
-        ? "User"
-        : "Users"
-    }`;
-
-
-  userList.innerHTML =
-    "";
-
-
   if (
-    filteredUsers.length ===
-    0
+    !userList
   ) {
 
-    usersEmptyState.classList.add(
-      "show"
-    );
-
-
     return;
-
   }
 
 
-  usersEmptyState.classList.remove(
-    "show"
-  );
-
-
-  filteredUsers.forEach(
-    function (user) {
-
-      const activeUserRoles =
-        roles.filter(
-          function (role) {
-
-            return (
-              role.user_id === user.id &&
-              role.is_active === true
-            );
-
-          }
-        );
-
-
-      const card =
-        document.createElement(
-          "article"
-        );
-
-
-      card.className =
-        "station-management-card";
-
-
-      /* ---------------------------------------------------
-         USER HEADER
-      --------------------------------------------------- */
-
-      const header =
-        document.createElement(
-          "div"
-        );
-
-
-      header.className =
-        "station-card-top";
-
-
-      const headerInfo =
-        document.createElement(
-          "div"
-        );
-
-
-      const label =
-        document.createElement(
-          "span"
-        );
-
-
-      label.textContent =
-        "RAILWAY USER";
-
-
-      const name =
-        document.createElement(
-          "h3"
-        );
-
-
-      name.textContent =
-        getUserDisplayName(
-          user
-        );
-
-
-      headerInfo.appendChild(
-        label
-      );
-
-
-      headerInfo.appendChild(
-        name
-      );
-
-
-      const status =
-        document.createElement(
-          "span"
-        );
-
-
-      status.className =
-        "station-status-badge";
-
-
-      status.textContent =
-        user.is_active === false
-          ? "INACTIVE"
-          : "ACTIVE";
-
-
-      header.appendChild(
-        headerInfo
-      );
-
-
-      header.appendChild(
-        status
-      );
-
-
-      card.appendChild(
-        header
-      );
-
-
-      /* ---------------------------------------------------
-         USER DETAILS
-      --------------------------------------------------- */
-
-      const details =
-        document.createElement(
-          "div"
-        );
-
-
-      details.className =
-        "station-card-details";
-
-
-      details.innerHTML = `
-
-        <div>
-
-          <span>
-            Employee Number
-          </span>
-
-          <strong>
-            ${escapeHtml(
-              user.employee_number ||
-              "-"
-            )}
-          </strong>
-
-        </div>
-
-
-        <div>
-
-          <span>
-            Designation
-          </span>
-
-          <strong>
-            ${escapeHtml(
-              user.designation ||
-              "-"
-            )}
-          </strong>
-
-        </div>
-
-
-        <div>
-
-          <span>
-            Phone
-          </span>
-
-          <strong>
-            ${escapeHtml(
-              user.phone ||
-              "-"
-            )}
-          </strong>
-
-        </div>
-
-
-        <div>
-
-          <span>
-            Active Roles
-          </span>
-
-          <strong>
-            ${activeUserRoles.length}
-          </strong>
-
-        </div>
-
-      `;
-
-
-      card.appendChild(
-        details
-      );
-
-
-      /* ---------------------------------------------------
-         ROLE SECTION
-      --------------------------------------------------- */
-
-      const roleSection =
-        document.createElement(
-          "div"
-        );
-
-
-      roleSection.style.marginTop =
-        "18px";
-
-
-      const roleHeading =
-        document.createElement(
-          "strong"
-        );
-
-
-      roleHeading.textContent =
-        "Assigned Roles";
-
-
-      roleSection.appendChild(
-        roleHeading
-      );
-
-
-      if (
-        activeUserRoles.length ===
-        0
-      ) {
-
-        const empty =
-          document.createElement(
-            "p"
-          );
-
-
-        empty.textContent =
-          "No active CTR role assigned.";
-
-
-        roleSection.appendChild(
-          empty
-        );
-
-      }
-
-
-      activeUserRoles.forEach(
-        function (role) {
-
-          const row =
-            document.createElement(
-              "div"
-            );
-
-
-          row.style.display =
-            "flex";
-
-
-          row.style.justifyContent =
-            "space-between";
-
-
-          row.style.alignItems =
-            "center";
-
-
-          row.style.gap =
-            "12px";
-
-
-          row.style.padding =
-            "10px 0";
-
-
-          row.style.borderBottom =
-            "1px solid #e3e9f1";
-
-
-          const info =
-            document.createElement(
-              "div"
-            );
-
-
-          const roleName =
-            document.createElement(
-              "strong"
-            );
-
-
-          roleName.textContent =
-            ROLE_LABELS[
-              role.role_code
-            ] ||
-            role.role_code;
-
-
-          const scope =
-            document.createElement(
-              "div"
-            );
-
-
-          scope.style.fontSize =
-            "13px";
-
-
-          scope.style.marginTop =
-            "3px";
-
-
-          scope.textContent =
-            getRoleScopeLabel(
-              role
-            );
-
-
-          info.appendChild(
-            roleName
-          );
-
-
-          info.appendChild(
-            scope
-          );
-
-
-          const deactivateButton =
-            document.createElement(
-              "button"
-            );
-
-
-          deactivateButton.type =
-            "button";
-
-
-          deactivateButton.className =
-            "remove-rack-btn";
-
-
-          deactivateButton.textContent =
-            "Deactivate Role";
-
-
-          deactivateButton.dataset.roleId =
-            role.id;
-
-
-          row.appendChild(
-            info
-          );
-
-
-          row.appendChild(
-            deactivateButton
-          );
-
-
-          roleSection.appendChild(
-            row
+  const searchValue =
+    userSearch
+      ? userSearch.value
+          .trim()
+          .toLowerCase()
+      : "";
+
+
+  const filteredProfiles =
+    administrationProfiles
+      .filter(
+        function (profile) {
+
+          const searchableText =
+            `
+              ${profile.full_name || ""}
+              ${profile.employee_number || ""}
+              ${profile.phone || ""}
+              ${profile.designation || ""}
+              ${profile.id || ""}
+            `
+              .toLowerCase();
+
+
+          return (
+            searchableText
+              .includes(
+                searchValue
+              )
           );
 
         }
       );
 
 
-      card.appendChild(
-        roleSection
-      );
+  userList.innerHTML =
+    "";
 
 
-      /* ---------------------------------------------------
-         CARD ACTIONS
-      --------------------------------------------------- */
+  if (userCount) {
 
-      const actions =
-        document.createElement(
-          "div"
-        );
-
-
-      actions.className =
-        "station-card-actions";
-
-
-      const editProfileButton =
-        document.createElement(
-          "button"
-        );
-
-
-      editProfileButton.type =
-        "button";
-
-
-      editProfileButton.className =
-        "secondary-action";
-
-
-      editProfileButton.textContent =
-        "Edit Profile";
-
-
-      editProfileButton.dataset.editProfile =
-        user.id;
-
-
-      const assignButton =
-        document.createElement(
-          "button"
-        );
-
-
-      assignButton.type =
-        "button";
-
-
-      assignButton.className =
-        "primary-action";
-
-
-      assignButton.textContent =
-        "Assign Role";
-
-
-      assignButton.dataset.userId =
-        user.id;
-
-
-      actions.appendChild(
-        editProfileButton
-      );
-
-
-      actions.appendChild(
-        assignButton
-      );
-
-
-      card.appendChild(
-        actions
-      );
-
-
-      userList.appendChild(
-        card
-      );
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   USER CARD EVENTS
-========================================================= */
-
-userList.addEventListener(
-  "click",
-  function (event) {
-
-    const roleButton =
-      event.target.closest(
-        "[data-role-id]"
-      );
-
-
-    if (roleButton) {
-
-      deactivateRole(
-        roleButton.dataset.roleId
-      );
-
-
-      return;
-
-    }
-
-
-    const profileButton =
-      event.target.closest(
-        "[data-edit-profile]"
-      );
-
-
-    if (profileButton) {
-
-      openProfileEditor(
-        profileButton.dataset.editProfile
-      );
-
-
-      return;
-
-    }
-
-
-    const userButton =
-      event.target.closest(
-        "[data-user-id]"
-      );
-
-
-    if (userButton) {
-
-      selectUserForRole(
-        userButton.dataset.userId
-      );
-
-    }
+    userCount.textContent =
+      `${filteredProfiles.length} ${
+        filteredProfiles.length ===
+        1
+          ? "User"
+          : "Users"
+      }`;
 
   }
-);
 
 
-/* =========================================================
-   EVENTS
-========================================================= */
+  if (
+    filteredProfiles.length ===
+    0
+  ) {
 
-roleCode.addEventListener(
-  "change",
-  function () {
-
-    updateRoleScopeOptions();
-
-    updateScopeFields();
-
-  }
-);
-
-
-roleScopeType.addEventListener(
-  "change",
-  updateScopeFields
-);
-
-
-roleDivision.addEventListener(
-  "change",
-  function () {
-
-    if (
-      roleScopeType.value ===
-      "STATION"
-    ) {
-
-      populateStationDropdown();
-
-    }
-
-  }
-);
-
-
-clearRoleFormButton.addEventListener(
-  "click",
-  clearRoleForm
-);
-
-
-assignRoleButton.addEventListener(
-  "click",
-  assignRole
-);
-
-
-userSearch.addEventListener(
-  "input",
-  renderUsers
-);
-
-
-closeProfileEditButton.addEventListener(
-  "click",
-  closeProfileEditor
-);
-
-
-cancelProfileEditButton.addEventListener(
-  "click",
-  closeProfileEditor
-);
-
-
-saveProfileButton.addEventListener(
-  "click",
-  saveUserProfile
-);
-
-
-/* =========================================================
-   INITIALISE
-========================================================= */
-
-async function initializeAdministration() {
-
-  roleAssignmentPanel.classList.add(
-    "open"
-  );
-
-
-  setFieldVisible(
-    roleDivisionField,
-    false
-  );
-
-
-  setFieldVisible(
-    roleStationField,
-    false
-  );
-
-
-  const authorized =
-    await verifySystemAdmin();
-
-
-  if (!authorized) {
+    usersEmptyState
+      ?.classList
+      .add(
+        "show"
+      );
 
     return;
 
   }
 
 
+  usersEmptyState
+    ?.classList
+    .remove(
+      "show"
+    );
+
+
+  filteredProfiles
+    .forEach(
+      function (profile) {
+
+        const roles =
+          administrationRoles
+            .filter(
+              function (role) {
+
+                return (
+                  role.user_id ===
+                  profile.id &&
+                  role.is_active !==
+                  false
+                );
+
+              }
+            );
+
+
+        const article =
+          document.createElement(
+            "article"
+          );
+
+
+        article.className =
+          "station-management-card";
+
+
+        const profileStatus =
+          profile.is_active ===
+          false
+            ? "INACTIVE"
+            : "ACTIVE";
+
+
+        const roleMarkup =
+          roles.length > 0
+
+            ? roles
+                .map(
+                  function (role) {
+
+                    return `
+                      <div
+                        style="
+                          border: 1px solid #d3dde7;
+                          background: #f7f9fb;
+                          padding: 10px 12px;
+                          margin-top: 8px;
+                          display: flex;
+                          align-items: center;
+                          justify-content: space-between;
+                          gap: 12px;
+                          flex-wrap: wrap;
+                        "
+                      >
+
+                        <div>
+
+                          <strong>
+                            ${escapeHtml(
+                              getRoleLabel(
+                                role.role_code
+                              )
+                            )}
+                          </strong>
+
+                          <div
+                            style="
+                              margin-top: 4px;
+                              font-size: 12px;
+                              color: #5c7084;
+                            "
+                          >
+                            ${escapeHtml(
+                              getRoleScopeText(
+                                role
+                              )
+                            )}
+                          </div>
+
+                        </div>
+
+
+                        <button
+                          type="button"
+                          class="remove-rack-btn"
+                          data-deactivate-role="${escapeHtml(
+                            role.id
+                          )}"
+                        >
+                          Deactivate Role
+                        </button>
+
+                      </div>
+                    `;
+
+                  }
+                )
+                .join(
+                  ""
+                )
+
+            : `
+                <div
+                  style="
+                    margin-top: 8px;
+                    padding: 10px 12px;
+                    border: 1px dashed #c9d4df;
+                    color: #65788b;
+                    font-size: 12px;
+                  "
+                >
+                  No active role assigned
+                </div>
+              `;
+
+
+        article.innerHTML = `
+
+          <div class="station-card-top">
+
+            <div>
+
+              <span>
+                RAILWAY USER
+              </span>
+
+              <h3>
+                ${escapeHtml(
+                  getProfileDisplayName(
+                    profile
+                  )
+                )}
+              </h3>
+
+            </div>
+
+
+            <span class="station-status-badge">
+              ${escapeHtml(
+                profileStatus
+              )}
+            </span>
+
+          </div>
+
+
+          <div class="station-card-details">
+
+            <div>
+
+              <span>
+                Employee Number
+              </span>
+
+              <strong>
+                ${escapeHtml(
+                  profile.employee_number ||
+                  "-"
+                )}
+              </strong>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                Designation
+              </span>
+
+              <strong>
+                ${escapeHtml(
+                  profile.designation ||
+                  "-"
+                )}
+              </strong>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                Phone
+              </span>
+
+              <strong>
+                ${escapeHtml(
+                  profile.phone ||
+                  "-"
+                )}
+              </strong>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                Active Roles
+              </span>
+
+              <strong>
+                ${roles.length}
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          <div
+            style="
+              padding: 12px 16px 16px;
+              border-top: 1px solid #d8e0e8;
+            "
+          >
+
+            <div
+              style="
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 0.8px;
+                color: #42688e;
+              "
+            >
+              ASSIGNED ACCESS
+            </div>
+
+            ${roleMarkup}
+
+          </div>
+
+        `;
+
+
+        userList.appendChild(
+          article
+        );
+
+      }
+    );
+
+}
+
+
+/* =========================================================
+   LOAD ALL ADMINISTRATION DATA
+========================================================= */
+
+async function loadAdministrationData() {
+
+  await Promise.all([
+
+    loadUserProfiles(),
+
+    loadAdministrationDivisions(),
+
+    loadAdministrationStations(),
+
+    loadAdministrationRoles()
+
+  ]);
+
+
+  populateUserSelect();
+
+  populateDivisionSelect();
+
+  configureScopeOptions();
+
+  renderUsers();
+
+}
+
+
+/* =========================================================
+   ROLE FORM EVENTS
+========================================================= */
+
+roleCode
+  ?.addEventListener(
+    "change",
+    function () {
+
+      configureScopeOptions();
+
+      showRoleMessage(
+        ""
+      );
+
+    }
+  );
+
+
+roleScopeType
+  ?.addEventListener(
+    "change",
+    function () {
+
+      updateScopeFields();
+
+      showRoleMessage(
+        ""
+      );
+
+    }
+  );
+
+
+roleDivision
+  ?.addEventListener(
+    "change",
+    function () {
+
+      if (
+        roleScopeType?.value ===
+        "STATION"
+      ) {
+
+        populateStationSelect();
+
+      }
+
+    }
+  );
+
+
+clearRoleFormButton
+  ?.addEventListener(
+    "click",
+    clearRoleForm
+  );
+
+
+assignRoleButton
+  ?.addEventListener(
+    "click",
+    assignUserRole
+  );
+
+
+userSearch
+  ?.addEventListener(
+    "input",
+    renderUsers
+  );
+
+
+/* =========================================================
+   USER LIST ACTIONS
+========================================================= */
+
+userList
+  ?.addEventListener(
+    "click",
+    function (event) {
+
+      const deactivateButton =
+        event.target.closest(
+          "[data-deactivate-role]"
+        );
+
+
+      if (!deactivateButton) {
+        return;
+      }
+
+
+      deactivateUserRole(
+        deactivateButton.dataset
+          .deactivateRole
+      );
+
+    }
+  );
+
+
+/* =========================================================
+   INITIALIZE ADMINISTRATION
+========================================================= */
+
+async function initializeAdministration() {
+
+  if (
+    administrationStarted
+  ) {
+
+    return;
+
+  }
+
+
+  administrationStarted =
+    true;
+
+
+  showRoleMessage(
+    "Loading administration data...",
+    ""
+  );
+
+
   try {
 
-    await Promise.all([
-
-      loadUsers(),
-
-      loadDivisions(),
-
-      loadStations(),
-
-      loadRoles()
-
-    ]);
+    const accessReady =
+      await waitForCtrAccess();
 
 
-    populateUserDropdown();
+    if (!accessReady) {
+
+      throw new Error(
+        "User permission information could not be loaded."
+      );
+
+    }
 
 
-    populateDivisionDropdown();
+    if (
+      !isCurrentUserSystemAdmin()
+    ) {
+
+      alert(
+        "System Admin permission is required to open Administration."
+      );
 
 
-    populateStationDropdown();
+      window.location.replace(
+        "index.html"
+      );
 
 
-    updateRoleScopeOptions();
+      return;
+
+    }
 
 
-    renderUsers();
+    await loadAdministrationData();
+
+
+    showRoleMessage(
+      ""
+    );
 
 
     console.log(
-      "CTR Administration loaded successfully."
+      "CTR Administration loaded:",
+      {
+        profiles:
+          administrationProfiles.length,
+
+        divisions:
+          administrationDivisions.length,
+
+        stations:
+          administrationStations.length,
+
+        activeRoles:
+          administrationRoles.length
+      }
     );
 
   }
@@ -2652,19 +2414,46 @@ async function initializeAdministration() {
   catch (error) {
 
     console.error(
-      "Administration load error:",
+      "Administration initialization error:",
       error
     );
 
 
-    alert(
+    showRoleMessage(
       error.message ||
-      "Administration data could not be loaded."
+      "Administration data could not be loaded.",
+      "error"
     );
+
+
+    if (userList) {
+
+      userList.innerHTML = `
+        <div class="stations-empty-state show">
+
+          <strong>
+            Administration could not be loaded
+          </strong>
+
+          <p>
+            ${escapeHtml(
+              error.message ||
+              "Database error."
+            )}
+          </p>
+
+        </div>
+      `;
+
+    }
 
   }
 
 }
 
+
+/* =========================================================
+   START
+========================================================= */
 
 initializeAdministration();

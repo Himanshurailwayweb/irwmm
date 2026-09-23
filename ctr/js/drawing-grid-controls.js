@@ -1445,57 +1445,47 @@
      LOCATION RACK DATA
   ===================================================== */
 
-  function getLocationRacks() {
+  function getLocations() {
 
-    const result =
-      [];
-
-
-    if (
-      typeof connectedEnds ===
-      "undefined" ||
-      !Array.isArray(
-        connectedEnds
-      )
-    ) {
-
-      return result;
-
-    }
+  const result = [];
 
 
-    connectedEnds.forEach(
-      function (end) {
-
-        (
-          end.locations ||
-          []
-        ).forEach(
-          function (location) {
-
-            (
-              location.racks ||
-              []
-            ).forEach(
-              function (rack) {
-
-                result.push(
-                  rack
-                );
-
-              }
-            );
-
-          }
-        );
-
-      }
-    );
-
+  if (
+    typeof connectedEnds === "undefined" ||
+    !Array.isArray(connectedEnds)
+  ) {
 
     return result;
 
   }
+
+
+  connectedEnds.forEach(
+    function (end) {
+
+      const locations =
+        Array.isArray(end.locations)
+          ? end.locations
+          : [];
+
+
+      locations.forEach(
+        function (location) {
+
+          result.push(
+            location
+          );
+
+        }
+      );
+
+    }
+  );
+
+
+  return result;
+
+}
 
 
   /* =====================================================
@@ -1634,79 +1624,102 @@
 
   function enhanceLocationRacks() {
 
-    const racks =
-      getLocationRacks();
+  /*
+     Function name compatibility ke liye same rakha hai.
+
+     Final Location Box structure:
+
+       Location Box
+       ├── Fuse Details
+       └── Rows / Columns / Terminals
+
+     Location Box ke andar koi K1 / K2 / K3 rack nahi hai.
+  */
+
+  const locations =
+    getLocations();
 
 
-    const cards =
-      document.querySelectorAll(
+  const wrappers =
+    document.querySelectorAll(
+      "#connectedEndsContainer .location-racks-wrapper"
+    );
 
-        "#connectedEndsContainer .location-rack-card"
 
+  wrappers.forEach(
+    function (
+      wrapper,
+      index
+    ) {
+
+      const location =
+        locations[index];
+
+
+      if (!location) {
+
+        return;
+
+      }
+
+
+      const rerender =
+        typeof renderConnectedEnds === "function"
+
+          ? renderConnectedEnds
+
+          : function () {};
+
+
+      /* =================================================
+         LOCATION BOX FUSE
+
+         Same Fuse controls as Station CTR:
+         + Add Row
+         + Add Column
+         individual × Remove Fuse
+      ================================================= */
+
+      const fuseSection =
+        wrapper.querySelector(
+          ".location-fuse-box"
+        );
+
+
+      enhanceFuseSection(
+        fuseSection,
+        location,
+        rerender
       );
 
 
-    cards.forEach(
-      function (
-        card,
-        index
-      ) {
+      /* =================================================
+         LOCATION TERMINALS
 
-        const rack =
-          racks[
-            index
-          ];
+         Top toolbar is already created by station.js.
 
+         Individual + Add Conductor is hidden because
+         column addition is controlled systematically.
+         Remove Row remains available.
+      ================================================= */
 
-        if (
-          !rack
-        ) {
+      wrapper
+        .querySelectorAll(
+          ".row-header-actions .add-conductor-btn"
+        )
+        .forEach(
+          function (button) {
 
-          return;
+            button.style.display =
+              "none";
 
-        }
-
-
-        const rerender =
-          typeof renderConnectedEnds ===
-          "function"
-
-            ? renderConnectedEnds
-
-            : function () {};
-
-
-        enhanceFuseSection(
-
-          card.querySelector(
-            ".location-fuse-box"
-          ),
-
-          rack,
-
-          rerender
-
+          }
         );
 
+    }
+  );
 
-        enhanceTerminalSection(
-
-          card,
-
-          rack,
-
-          rerender,
-
-          true
-
-        );
-
-      }
-    );
-
-  }
-
-
+}
   /* =====================================================
      CSS
   ===================================================== */
