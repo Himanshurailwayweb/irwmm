@@ -1,45 +1,32 @@
 /* =========================================================
-   CTR MANAGEMENT SYSTEM
-   DIGITAL SIGNING WORKSPACE
-
-   STEP 51F
+   IRWMM - CTR DIGITAL SIGNING
+   DSC BRIDGE READY VERSION
 
    BACKEND
    ---------------------------------------------------------
    get_ctr_signing_workspace(uuid)
 
-   sign_and_forward_ctr(
-     uuid,
-     uuid,
-     text,
-     text,
-     text,
-     text,
-     text
-   )
+   sign_and_forward_ctr(...)
 
-   final_sign_and_approve_initial_ctr(
-     uuid,
-     uuid,
-     text,
-     text,
-     text,
-     text,
-     text
-   )
+   final_sign_and_approve_initial_ctr(...)
 
    STORAGE
    ---------------------------------------------------------
    Private bucket:
    ctr-workflow-documents
 
-   IMPORTANT
+
+   DSC SECURITY
    ---------------------------------------------------------
-   - This application does not create a fake signature.
-   - Officer must use an authorized DSC / eSign process.
-   - Browser calculates SHA-256 of the returned signed PDF.
-   - Signed PDF is stored as a new immutable object.
-   - Existing workflow PDFs are never overwritten.
+   Website never receives private DSC key.
+
+   Website never asks for DSC token PIN.
+
+   Signing occurs locally on the officer's PC/token.
+
+   DSC Bridge must return the complete digitally-signed PDF.
+
+   Existing PDF signatures must be preserved.
 ========================================================= */
 
 
@@ -58,6 +45,16 @@
 
   const SIGNED_URL_LIFETIME_SECONDS =
     120;
+
+
+  const MAX_PDF_SIZE =
+    25 *
+    1024 *
+    1024;
+
+
+  const DEFAULT_SIGNATURE_METHOD =
+    "DSC";
 
 
   /* =====================================================
@@ -118,6 +115,8 @@
     );
 
 
+  /* CURRENT PDF */
+
   const currentDocumentStatus =
     document.getElementById(
       "currentDocumentStatus"
@@ -127,12 +126,6 @@
   const currentDocumentType =
     document.getElementById(
       "currentDocumentType"
-    );
-
-
-  const currentDocumentHash =
-    document.getElementById(
-      "currentDocumentHash"
     );
 
 
@@ -154,17 +147,63 @@
     );
 
 
-  const signatureMethod =
+  /* DSC */
+
+  const dscBridgeStatusBox =
     document.getElementById(
-      "signatureMethod"
+      "dscBridgeStatusBox"
     );
 
 
-  const signatureReference =
+  const dscBridgeStatus =
     document.getElementById(
-      "signatureReference"
+      "dscBridgeStatus"
     );
 
+
+  const dscBridgeDetail =
+    document.getElementById(
+      "dscBridgeDetail"
+    );
+
+
+  const refreshDscBridge =
+    document.getElementById(
+      "refreshDscBridge"
+    );
+
+
+  const signWithDscButton =
+    document.getElementById(
+      "signWithDscButton"
+    );
+
+
+  const dscSignerResult =
+    document.getElementById(
+      "dscSignerResult"
+    );
+
+
+  const dscSignerName =
+    document.getElementById(
+      "dscSignerName"
+    );
+
+
+  const dscCertificateInfo =
+    document.getElementById(
+      "dscCertificateInfo"
+    );
+
+
+  const dscSignedAt =
+    document.getElementById(
+      "dscSignedAt"
+    );
+
+
+  /* MANUAL FALLBACK */
 
   const signedPdfFile =
     document.getElementById(
@@ -178,9 +217,15 @@
     );
 
 
-  const signingRemarks =
+  const signatureReference =
     document.getElementById(
-      "signingRemarks"
+      "signatureReference"
+    );
+
+
+  const manualSignedConfirmation =
+    document.getElementById(
+      "manualSignedConfirmation"
     );
 
 
@@ -190,33 +235,17 @@
     );
 
 
+  /* WORKFLOW */
+
+  const signingRemarks =
+    document.getElementById(
+      "signingRemarks"
+    );
+
+
   const completeSigningAction =
     document.getElementById(
       "completeSigningAction"
-    );
-
-
-  const signingRoute =
-    document.getElementById(
-      "signingRoute"
-    );
-
-
-  const signingDocumentChain =
-    document.getElementById(
-      "signingDocumentChain"
-    );
-
-
-  const signingFinalProcessText =
-    document.getElementById(
-      "signingFinalProcessText"
-    );
-
-
-  const signingFinalProcessDescription =
-    document.getElementById(
-      "signingFinalProcessDescription"
     );
 
 
@@ -244,8 +273,30 @@
     false;
 
 
+  /*
+     bridge = signed directly through DSC bridge
+
+     manual = officer selected signed PDF manually
+  */
+
+  let selectedSigningSource =
+    null;
+
+
+  let bridgeSignatureValidated =
+    false;
+
+
   let signingActionRunning =
     false;
+
+
+  let dscBridgeAvailable =
+    false;
+
+
+  let dscBridgeInfo =
+    null;
 
 
   /* =====================================================
@@ -257,11 +308,15 @@
     try {
 
       if (
+
         typeof supabaseClient !==
           "undefined" &&
+
         supabaseClient &&
+
         typeof supabaseClient.rpc ===
           "function"
+
       ) {
 
         return supabaseClient;
@@ -269,7 +324,6 @@
       }
 
     }
-
     catch (error) {
 
       console.warn(
@@ -281,9 +335,14 @@
 
 
     if (
+
       window.supabaseClient &&
-      typeof window.supabaseClient.rpc ===
+
+      typeof window
+        .supabaseClient
+        .rpc ===
         "function"
+
     ) {
 
       return window.supabaseClient;
@@ -299,9 +358,13 @@
   async function waitForSupabaseClient() {
 
     for (
+
       let attempt = 0;
+
       attempt < 100;
+
       attempt += 1
+
     ) {
 
       const client =
@@ -316,7 +379,7 @@
 
 
       await new Promise(
-        (resolve) => {
+        function (resolve) {
 
           setTimeout(
             resolve,
@@ -340,17 +403,9 @@
 
   function escapeHtml(value) {
 
-    if (
-      value === null ||
-      value === undefined
-    ) {
-
-      return "";
-
-    }
-
-
-    return String(value)
+    return String(
+      value ?? ""
+    )
 
       .replaceAll(
         "&",
@@ -386,9 +441,15 @@
   ) {
 
     if (
+
       value === null ||
+
       value === undefined ||
-      String(value).trim() === ""
+
+      String(
+        value
+      ).trim() === ""
+
     ) {
 
       return fallback;
@@ -396,12 +457,16 @@
     }
 
 
-    return String(value).trim();
+    return String(
+      value
+    ).trim();
 
   }
 
 
-  function formatDateTime(value) {
+  function formatDateTime(
+    value
+  ) {
 
     if (!value) {
 
@@ -411,13 +476,17 @@
 
 
     const date =
-      new Date(value);
+      new Date(
+        value
+      );
 
 
     if (
+
       Number.isNaN(
         date.getTime()
       )
+
     ) {
 
       return "—";
@@ -428,22 +497,40 @@
     return date.toLocaleString(
       "en-IN",
       {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
+
+        day:
+          "2-digit",
+
+        month:
+          "short",
+
+        year:
+          "numeric",
+
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit"
+
       }
     );
 
   }
 
 
-  function formatFileSize(bytes) {
+  function formatFileSize(
+    bytes
+  ) {
 
     if (
-      !Number.isFinite(bytes) ||
+
+      !Number.isFinite(
+        bytes
+      ) ||
+
       bytes < 0
+
     ) {
 
       return "—";
@@ -451,7 +538,10 @@
     }
 
 
-    if (bytes < 1024) {
+    if (
+      bytes <
+      1024
+    ) {
 
       return `${bytes} B`;
 
@@ -459,10 +549,14 @@
 
 
     const kb =
-      bytes / 1024;
+      bytes /
+      1024;
 
 
-    if (kb < 1024) {
+    if (
+      kb <
+      1024
+    ) {
 
       return `${kb.toFixed(1)} KB`;
 
@@ -470,7 +564,8 @@
 
 
     const mb =
-      kb / 1024;
+      kb /
+      1024;
 
 
     return `${mb.toFixed(2)} MB`;
@@ -487,17 +582,30 @@
 
 
     return (
-      params.get("workflow") ||
-      params.get("id") ||
+
+      params.get(
+        "workflow"
+      ) ||
+
+      params.get(
+        "id"
+      ) ||
+
       ""
+
     ).trim();
 
   }
 
 
-  function getStageName(stepType) {
+  function getStageName(
+    stepType
+  ) {
 
-    if (stepType === "PREPARER") {
+    if (
+      stepType ===
+      "PREPARER"
+    ) {
 
       return "Preparation";
 
@@ -519,9 +627,14 @@
   }
 
 
-  function getDocumentTypeName(type) {
+  function getDocumentTypeName(
+    type
+  ) {
 
-    if (type === "GENERATED") {
+    if (
+      type ===
+      "GENERATED"
+    ) {
 
       return "Generated CTR PDF";
 
@@ -533,7 +646,7 @@
       "SIGNED_FORWARD"
     ) {
 
-      return "Digitally Signed & Forwarded PDF";
+      return "Digitally Signed PDF";
 
     }
 
@@ -543,7 +656,7 @@
       "FINAL_SIGNED"
     ) {
 
-      return "Final Approved Signed PDF";
+      return "Final Signed CTR PDF";
 
     }
 
@@ -553,8 +666,45 @@
   }
 
 
+  function getDownloadFilename(
+    suffix = ""
+  ) {
+
+    const stationCode =
+      displayValue(
+        workspace?.station_code,
+        "STATION"
+      )
+        .replace(
+          /[^a-zA-Z0-9_-]/g,
+          "_"
+        );
+
+
+    const record =
+      displayValue(
+        workspace?.record_name,
+        "CTR"
+      )
+        .replace(
+          /[^a-zA-Z0-9_-]/g,
+          "_"
+        );
+
+
+    return (
+
+      `${stationCode}_` +
+      `${record}` +
+      `${suffix}.pdf`
+
+    );
+
+  }
+
+
   /* =====================================================
-     STATUS
+     STATUS MESSAGE
   ===================================================== */
 
   function showStatus(
@@ -562,7 +712,9 @@
     type = "normal"
   ) {
 
-    if (!signingStatus) {
+    if (
+      !signingStatus
+    ) {
 
       return;
 
@@ -577,32 +729,44 @@
       message;
 
 
-    if (type === "error") {
+    if (
+      type ===
+      "error"
+    ) {
 
       signingStatus.style.background =
         "#fff4f4";
 
+
       signingStatus.style.borderColor =
         "#dfbcbc";
 
+
       signingStatus.style.color =
         "#8a3434";
+
 
       return;
 
     }
 
 
-    if (type === "success") {
+    if (
+      type ===
+      "success"
+    ) {
 
       signingStatus.style.background =
         "#f3f8f4";
 
+
       signingStatus.style.borderColor =
         "#bfd6c3";
 
+
       signingStatus.style.color =
         "#356345";
+
 
       return;
 
@@ -612,8 +776,10 @@
     signingStatus.style.background =
       "#f8fafc";
 
+
     signingStatus.style.borderColor =
       "#d3dde7";
+
 
     signingStatus.style.color =
       "#526b82";
@@ -628,10 +794,13 @@
   function renderSummary() {
 
     const currentStep =
-      workspace?.current_step || {};
+      workspace?.current_step ||
+      {};
 
 
-    if (signingStation) {
+    if (
+      signingStation
+    ) {
 
       signingStation.textContent =
         displayValue(
@@ -641,7 +810,9 @@
     }
 
 
-    if (signingStationCode) {
+    if (
+      signingStationCode
+    ) {
 
       const code =
         displayValue(
@@ -658,18 +829,22 @@
 
 
       signingStationCode.textContent =
+
         [
           code,
           division
         ]
           .filter(Boolean)
           .join(" · ") ||
+
         "—";
 
     }
 
 
-    if (signingRecordName) {
+    if (
+      signingRecordName
+    ) {
 
       signingRecordName.textContent =
         displayValue(
@@ -680,7 +855,9 @@
     }
 
 
-    if (signingCurrentStage) {
+    if (
+      signingCurrentStage
+    ) {
 
       signingCurrentStage.textContent =
         getStageName(
@@ -690,9 +867,12 @@
     }
 
 
-    if (signingStepProgress) {
+    if (
+      signingStepProgress
+    ) {
 
       signingStepProgress.textContent =
+
         `Step ${
           workspace?.current_step_order ||
           "—"
@@ -704,7 +884,9 @@
     }
 
 
-    if (signingAssignedName) {
+    if (
+      signingAssignedName
+    ) {
 
       signingAssignedName.textContent =
         displayValue(
@@ -730,7 +912,169 @@
 
 
   /* =====================================================
-     PRIVATE STORAGE SIGNED URL
+     CURRENT DOCUMENT
+  ===================================================== */
+
+  function renderCurrentDocument() {
+
+    const documentRecord =
+      workspace?.current_document;
+
+
+    if (
+      !documentRecord
+    ) {
+
+      currentDocumentStatus.textContent =
+        "PDF not available";
+
+
+      currentDocumentType.textContent =
+        "—";
+
+
+      currentDocumentSignedAt.textContent =
+        "—";
+
+
+      openCurrentDocument.disabled =
+        true;
+
+
+      downloadCurrentDocument.disabled =
+        true;
+
+
+      updateSigningReadiness();
+
+
+      return;
+
+    }
+
+
+    currentDocumentStatus.textContent =
+
+      documentRecord.is_final
+
+        ? "Final signed document"
+
+        : "Current document";
+
+
+    currentDocumentType.textContent =
+      getDocumentTypeName(
+        documentRecord.document_type
+      );
+
+
+    currentDocumentSignedAt.textContent =
+      formatDateTime(
+        documentRecord.signed_at
+      );
+
+
+    openCurrentDocument.disabled =
+      false;
+
+
+    downloadCurrentDocument.disabled =
+      false;
+
+
+    updateSigningReadiness();
+
+  }
+
+
+  /* =====================================================
+     WORKFLOW ACTION
+  ===================================================== */
+
+  function configureActionMode() {
+
+    const canFinalApprove =
+
+      workspace
+        ?.can_final_approve ===
+      true;
+
+
+    const canForward =
+
+      workspace
+        ?.can_sign_and_forward ===
+      true;
+
+
+    const isCurrentHolder =
+
+      workspace
+        ?.is_current_holder ===
+      true;
+
+
+    if (
+      canFinalApprove
+    ) {
+
+      signingHeroStatus.textContent =
+        "● Final Approval";
+
+
+      completeSigningAction.textContent =
+        "Submit & Final Approve";
+
+    }
+
+
+    else if (
+      canForward
+    ) {
+
+      signingHeroStatus.textContent =
+        "● Ready for Signing";
+
+
+      completeSigningAction.textContent =
+        "Submit & Forward";
+
+    }
+
+
+    else {
+
+      signingHeroStatus.textContent =
+
+        isCurrentHolder
+
+          ? "● Action Not Available"
+
+          : "● Read Only";
+
+    }
+
+
+    updateSigningReadiness();
+
+    updateDscButtonState();
+
+  }
+
+
+  function renderWorkspace() {
+
+    renderSummary();
+
+    renderCurrentDocument();
+
+    configureActionMode();
+
+  }
+
+
+  /* =====================================================
+     TEMPORARY PRIVATE PDF URL
   ===================================================== */
 
   async function createDocumentSignedUrl(
@@ -738,10 +1082,12 @@
     download = false
   ) {
 
-    if (!storagePath) {
+    if (
+      !storagePath
+    ) {
 
       throw new Error(
-        "Controlled PDF storage path is missing."
+        "PDF storage path is missing."
       );
 
     }
@@ -751,7 +1097,9 @@
       await waitForSupabaseClient();
 
 
-    if (!client) {
+    if (
+      !client
+    ) {
 
       throw new Error(
         "Supabase connection is unavailable."
@@ -761,11 +1109,16 @@
 
 
     const options =
+
       download
+
         ? {
+
             download:
               getDownloadFilename()
+
           }
+
         : undefined;
 
 
@@ -779,23 +1132,31 @@
           STORAGE_BUCKET
         )
         .createSignedUrl(
+
           storagePath,
+
           SIGNED_URL_LIFETIME_SECONDS,
+
           options
+
         );
 
 
-    if (error) {
+    if (
+      error
+    ) {
 
       throw error;
 
     }
 
 
-    if (!data?.signedUrl) {
+    if (
+      !data?.signedUrl
+    ) {
 
       throw new Error(
-        "Temporary PDF access link could not be created."
+        "Temporary PDF link could not be created."
       );
 
     }
@@ -806,40 +1167,11 @@
   }
 
 
-  function getDownloadFilename() {
-
-    const stationCode =
-      displayValue(
-        workspace?.station_code,
-        "STATION"
-      )
-        .replace(
-          /[^a-zA-Z0-9_-]/g,
-          "_"
-        );
-
-
-    const record =
-      displayValue(
-        workspace?.record_name,
-        "CTR"
-      )
-        .replace(
-          /[^a-zA-Z0-9_-]/g,
-          "_"
-        );
-
-
-    return `${stationCode}_${record}.pdf`;
-
-  }
-
-
   /* =====================================================
-     CURRENT DOCUMENT BUTTONS
+     OPEN PDF
   ===================================================== */
 
-  async function openControlledDocument() {
+  async function openCurrentPdf() {
 
     const path =
       workspace
@@ -847,12 +1179,15 @@
         ?.storage_path;
 
 
-    if (!path) {
+    if (
+      !path
+    ) {
 
       showStatus(
-        "Current controlled PDF is not available.",
+        "CTR PDF is not available.",
         "error"
       );
+
 
       return;
 
@@ -862,11 +1197,11 @@
     try {
 
       showStatus(
-        "Opening current controlled PDF..."
+        "Opening CTR PDF..."
       );
 
 
-      const signedUrl =
+      const url =
         await createDocumentSignedUrl(
           path,
           false
@@ -874,17 +1209,22 @@
 
 
       window.open(
-        signedUrl,
+
+        url,
+
         "_blank",
+
         "noopener,noreferrer"
+
       );
 
 
       showStatus(
-        "Current controlled PDF opened."
+        "CTR PDF opened."
       );
 
     }
+
 
     catch (error) {
 
@@ -895,9 +1235,13 @@
 
 
       showStatus(
+
         error?.message ||
-        "Unable to open current PDF.",
+
+        "Unable to open PDF.",
+
         "error"
+
       );
 
     }
@@ -905,7 +1249,11 @@
   }
 
 
-  async function downloadControlledDocument() {
+  /* =====================================================
+     DOWNLOAD PDF
+  ===================================================== */
+
+  async function downloadCurrentPdf() {
 
     const path =
       workspace
@@ -913,12 +1261,15 @@
         ?.storage_path;
 
 
-    if (!path) {
+    if (
+      !path
+    ) {
 
       showStatus(
-        "Current controlled PDF is not available.",
+        "CTR PDF is not available.",
         "error"
       );
+
 
       return;
 
@@ -928,11 +1279,11 @@
     try {
 
       showStatus(
-        "Preparing controlled PDF download..."
+        "Preparing PDF..."
       );
 
 
-      const signedUrl =
+      const url =
         await createDocumentSignedUrl(
           path,
           true
@@ -946,7 +1297,7 @@
 
 
       link.href =
-        signedUrl;
+        url;
 
 
       link.rel =
@@ -965,10 +1316,11 @@
 
 
       showStatus(
-        "Controlled PDF prepared for the authorized digital-signature process."
+        "PDF ready."
       );
 
     }
+
 
     catch (error) {
 
@@ -979,9 +1331,13 @@
 
 
       showStatus(
+
         error?.message ||
-        "Unable to download current PDF.",
+
+        "Unable to download PDF.",
+
         "error"
+
       );
 
     }
@@ -990,517 +1346,57 @@
 
 
   /* =====================================================
-     CURRENT DOCUMENT
+     FETCH SOURCE PDF FOR DSC
   ===================================================== */
 
-  function renderCurrentDocument() {
+  async function fetchCurrentPdfBytes() {
 
-    const documentRecord =
-      workspace?.current_document;
-
-
-    if (!documentRecord) {
-
-      if (currentDocumentStatus) {
-
-        currentDocumentStatus.textContent =
-          "No controlled PDF registered";
-
-      }
+    const path =
+      workspace
+        ?.current_document
+        ?.storage_path;
 
 
-      if (currentDocumentType) {
+    if (
+      !path
+    ) {
 
-        currentDocumentType.textContent =
-          "—";
-
-      }
-
-
-      if (currentDocumentHash) {
-
-        currentDocumentHash.textContent =
-          "—";
-
-      }
-
-
-      if (currentDocumentSignedAt) {
-
-        currentDocumentSignedAt.textContent =
-          "—";
-
-      }
-
-
-      if (openCurrentDocument) {
-
-        openCurrentDocument.disabled =
-          true;
-
-      }
-
-
-      if (downloadCurrentDocument) {
-
-        downloadCurrentDocument.disabled =
-          true;
-
-      }
-
-
-      return;
+      throw new Error(
+        "Current CTR PDF is unavailable."
+      );
 
     }
 
 
-    if (currentDocumentStatus) {
-
-      currentDocumentStatus.textContent =
-        documentRecord.is_final
-          ? "Final document"
-          : "Current controlled document";
-
-    }
-
-
-    if (currentDocumentType) {
-
-      currentDocumentType.textContent =
-        getDocumentTypeName(
-          documentRecord.document_type
-        );
-
-    }
-
-
-    if (currentDocumentHash) {
-
-      currentDocumentHash.textContent =
-        displayValue(
-          documentRecord.sha256,
-          "Hash not recorded"
-        );
-
-    }
-
-
-    if (currentDocumentSignedAt) {
-
-      currentDocumentSignedAt.textContent =
-        formatDateTime(
-          documentRecord.signed_at
-        );
-
-    }
-
-
-    if (openCurrentDocument) {
-
-      openCurrentDocument.disabled =
-        false;
-
-    }
-
-
-    if (downloadCurrentDocument) {
-
-      downloadCurrentDocument.disabled =
-        false;
-
-    }
-
-  }
-
-
-  /* =====================================================
-     ROUTE
-  ===================================================== */
-
-  function renderRoute() {
-
-    if (!signingRoute) {
-
-      return;
-
-    }
-
-
-    const route =
-      Array.isArray(
-        workspace?.route
-      )
-        ? workspace.route
-        : [];
-
-
-    if (route.length === 0) {
-
-      signingRoute.innerHTML = `
-
-        <div class="signing-route-step">
-
-          <div class="signing-route-order">
-            —
-          </div>
-
-          <div>
-
-            <strong>
-              Route not available
-            </strong>
-
-          </div>
-
-        </div>
-
-      `;
-
-      return;
-
-    }
-
-
-    signingRoute.innerHTML =
-      route.map(
-        (step) => {
-
-          const status =
-            String(
-              step.step_status || ""
-            ).toUpperCase();
-
-
-          const statusClass =
-            status === "CURRENT"
-              ? "current"
-              : status === "COMPLETED"
-                ? "completed"
-                : "";
-
-
-          return `
-
-            <div class="signing-route-step">
-
-              <div class="signing-route-order">
-
-                ${escapeHtml(
-                  step.step_order
-                )}
-
-              </div>
-
-
-              <div>
-
-                <strong>
-
-                  ${escapeHtml(
-                    displayValue(
-                      step.assigned_name,
-                      "User not recorded"
-                    )
-                  )}
-
-                </strong>
-
-
-                <small>
-
-                  ${escapeHtml(
-                    displayValue(
-                      step.assigned_designation
-                    )
-                  )}
-
-                  ·
-
-                  ${escapeHtml(
-                    getStageName(
-                      step.step_type
-                    )
-                  )}
-
-                </small>
-
-              </div>
-
-
-              <span
-                class="
-                  signing-route-state
-                  ${statusClass}
-                "
-              >
-
-                ${escapeHtml(
-                  displayValue(
-                    status,
-                    "WAITING"
-                  )
-                )}
-
-              </span>
-
-            </div>
-
-          `;
-
+    const url =
+      await createDocumentSignedUrl(
+        path,
+        false
+      );
+
+
+    const response =
+      await fetch(
+        url,
+        {
+          cache:
+            "no-store"
         }
-      )
-      .join("");
-
-  }
+      );
 
 
-  /* =====================================================
-     DOCUMENT CHAIN
-  ===================================================== */
+    if (
+      !response.ok
+    ) {
 
-  function renderDocumentChain() {
-
-    if (!signingDocumentChain) {
-
-      return;
+      throw new Error(
+        "Unable to read the current CTR PDF for DSC signing."
+      );
 
     }
 
 
-    const chain =
-      Array.isArray(
-        workspace?.document_chain
-      )
-        ? workspace.document_chain
-        : [];
-
-
-    if (chain.length === 0) {
-
-      signingDocumentChain.innerHTML = `
-
-        <div class="signing-route-step">
-
-          <div class="signing-route-order">
-            —
-          </div>
-
-          <div>
-
-            <strong>
-              No controlled PDF registered
-            </strong>
-
-            <small>
-              PDF generation and registration is required.
-            </small>
-
-          </div>
-
-        </div>
-
-      `;
-
-      return;
-
-    }
-
-
-    signingDocumentChain.innerHTML =
-      chain.map(
-        (
-          documentRecord,
-          index
-        ) => {
-
-          const state =
-            documentRecord.is_final
-              ? "FINAL"
-              : documentRecord.document_type ===
-                "GENERATED"
-                ? "GENERATED"
-                : "SIGNED";
-
-
-          const stateClass =
-            documentRecord.is_final
-              ? "current"
-              : documentRecord.document_type ===
-                "SIGNED_FORWARD"
-                ? "completed"
-                : "";
-
-
-          return `
-
-            <div class="signing-route-step">
-
-              <div class="signing-route-order">
-
-                ${index + 1}
-
-              </div>
-
-
-              <div>
-
-                <strong>
-
-                  ${escapeHtml(
-                    getDocumentTypeName(
-                      documentRecord.document_type
-                    )
-                  )}
-
-                </strong>
-
-
-                <small>
-
-                  ${escapeHtml(
-                    formatDateTime(
-                      documentRecord.signed_at ||
-                      documentRecord.created_at
-                    )
-                  )}
-
-                </small>
-
-              </div>
-
-
-              <span
-                class="
-                  signing-route-state
-                  ${stateClass}
-                "
-              >
-
-                ${escapeHtml(state)}
-
-              </span>
-
-            </div>
-
-          `;
-
-        }
-      )
-      .join("");
-
-  }
-
-
-  /* =====================================================
-     ACTION MODE
-  ===================================================== */
-
-  function configureActionMode() {
-
-    const canFinalApprove =
-      workspace?.can_final_approve ===
-      true;
-
-
-    const canForward =
-      workspace?.can_sign_and_forward ===
-      true;
-
-
-    const isCurrentHolder =
-      workspace?.is_current_holder ===
-      true;
-
-
-    if (canFinalApprove) {
-
-      if (completeSigningAction) {
-
-        completeSigningAction.textContent =
-          "Digital Sign & Final Approve";
-
-      }
-
-
-      if (signingFinalProcessText) {
-
-        signingFinalProcessText.textContent =
-          "Final Approve";
-
-      }
-
-
-      if (
-        signingFinalProcessDescription
-      ) {
-
-        signingFinalProcessDescription.textContent =
-          "The final signed PDF becomes the permanent approved CTR document and the workflow is closed.";
-
-      }
-
-
-      if (signingHeroStatus) {
-
-        signingHeroStatus.textContent =
-          "● Final Approval";
-
-      }
-
-    }
-
-    else if (canForward) {
-
-      if (completeSigningAction) {
-
-        completeSigningAction.textContent =
-          "Digital Sign & Forward";
-
-      }
-
-
-      if (signingFinalProcessText) {
-
-        signingFinalProcessText.textContent =
-          "Forward to Next Officer";
-
-      }
-
-
-      if (
-        signingFinalProcessDescription
-      ) {
-
-        signingFinalProcessDescription.textContent =
-          "The newly signed PDF becomes the current controlled document and moves to the next assigned officer.";
-
-      }
-
-
-      if (signingHeroStatus) {
-
-        signingHeroStatus.textContent =
-          "● Ready for Signing";
-
-      }
-
-    }
-
-    else {
-
-      if (signingHeroStatus) {
-
-        signingHeroStatus.textContent =
-          isCurrentHolder
-            ? "● Action Not Available"
-            : "● Read Only";
-
-      }
-
-    }
-
-
-    updateSigningReadiness();
+    return response.arrayBuffer();
 
   }
 
@@ -1509,9 +1405,13 @@
      PDF CHECK
   ===================================================== */
 
-  async function isPdfFile(file) {
+  async function isPdfFile(
+    file
+  ) {
 
-    if (!file) {
+    if (
+      !file
+    ) {
 
       return false;
 
@@ -1534,34 +1434,47 @@
 
 
     const header =
-      Array.from(bytes)
+      Array
+        .from(
+          bytes
+        )
         .map(
-          (byte) =>
-            String.fromCharCode(
-              byte
-            )
+          function (byte) {
+
+            return String
+              .fromCharCode(
+                byte
+              );
+
+          }
         )
         .join("");
 
 
-    return header === "%PDF-";
+    return (
+      header ===
+      "%PDF-"
+    );
 
   }
 
 
   /* =====================================================
-     SHA-256
+     INTERNAL SHA-256
+
+     Not shown to officer.
   ===================================================== */
 
-  async function calculateSha256(file) {
+  async function calculateSha256(
+    file
+  ) {
 
     if (
-      !window.crypto ||
-      !window.crypto.subtle
+      !window.crypto?.subtle
     ) {
 
       throw new Error(
-        "This browser does not support SHA-256 verification."
+        "Browser document verification is unavailable."
       );
 
     }
@@ -1572,10 +1485,13 @@
 
 
     const digest =
-      await window.crypto.subtle.digest(
-        "SHA-256",
-        fileBuffer
-      );
+      await window
+        .crypto
+        .subtle
+        .digest(
+          "SHA-256",
+          fileBuffer
+        );
 
 
     return Array
@@ -1585,13 +1501,16 @@
         )
       )
       .map(
-        (byte) =>
-          byte
+        function (byte) {
+
+          return byte
             .toString(16)
             .padStart(
               2,
               "0"
-            )
+            );
+
+        }
       )
       .join("");
 
@@ -1599,7 +1518,7 @@
 
 
   /* =====================================================
-     FILE STATE
+     RESET SIGNING FILE
   ===================================================== */
 
   function resetSignedFileState() {
@@ -1616,18 +1535,21 @@
       false;
 
 
-    if (verifySignedDocument) {
-
-      verifySignedDocument.disabled =
-        true;
-
-    }
+    selectedSigningSource =
+      null;
 
 
-    if (signedFileResult) {
+    bridgeSignatureValidated =
+      false;
+
+
+    if (
+      signedFileResult
+    ) {
 
       signedFileResult.hidden =
         true;
+
 
       signedFileResult.innerHTML =
         "";
@@ -1635,82 +1557,22 @@
     }
 
 
-    updateSigningReadiness();
+    if (
+      dscSignerResult
+    ) {
 
-  }
-
-
-  function handleSignedFileSelection() {
-
-    selectedSignedFile =
-      null;
-
-
-    selectedSignedFileHash =
-      null;
-
-
-    selectedSignedFileVerified =
-      false;
-
-
-    const file =
-      signedPdfFile
-        ?.files
-        ?.[0];
-
-
-    if (!file) {
-
-      resetSignedFileState();
-
-      return;
+      dscSignerResult.hidden =
+        true;
 
     }
 
 
-    selectedSignedFile =
-      file;
-
-
-    if (verifySignedDocument) {
+    if (
+      verifySignedDocument
+    ) {
 
       verifySignedDocument.disabled =
-        false;
-
-    }
-
-
-    if (signedFileResult) {
-
-      signedFileResult.hidden =
-        false;
-
-
-      signedFileResult.innerHTML = `
-
-        <strong>
-          Selected PDF
-        </strong>
-
-        <br>
-
-        ${escapeHtml(file.name)}
-
-        <br>
-
-        Size:
-        ${escapeHtml(
-          formatFileSize(
-            file.size
-          )
-        )}
-
-        <br>
-
-        Verification pending.
-
-      `;
+        true;
 
     }
 
@@ -1721,32 +1583,221 @@
 
 
   /* =====================================================
-     LOCAL FILE VERIFICATION
+     VALIDATE PDF
   ===================================================== */
 
-  async function verifySelectedSignedPdf() {
+  async function validateSignedPdfFile(
+    file
+  ) {
 
-    if (!selectedSignedFile) {
+    if (
+      !file
+    ) {
 
-      showStatus(
-        "Select the digitally signed PDF first.",
-        "error"
+      throw new Error(
+        "Signed PDF is unavailable."
       );
+
+    }
+
+
+    if (
+      file.size >
+      MAX_PDF_SIZE
+    ) {
+
+      throw new Error(
+        "PDF exceeds the 25 MB limit."
+      );
+
+    }
+
+
+    const validPdf =
+      await isPdfFile(
+        file
+      );
+
+
+    if (
+      !validPdf
+    ) {
+
+      throw new Error(
+        "Selected file is not a valid PDF."
+      );
+
+    }
+
+
+    const calculatedHash =
+      await calculateSha256(
+        file
+      );
+
+
+    const sourceHash =
+      workspace
+        ?.current_document
+        ?.sha256
+        ?.toLowerCase();
+
+
+    if (
+
+      sourceHash &&
+
+      calculatedHash ===
+        sourceHash
+
+    ) {
+
+      throw new Error(
+        "The selected PDF is identical to the current CTR PDF. Select the digitally signed PDF."
+      );
+
+    }
+
+
+    return calculatedHash;
+
+  }
+
+
+  /* =====================================================
+     FILE DISPLAY
+  ===================================================== */
+
+  function showSelectedFile(
+    file,
+    heading,
+    note = ""
+  ) {
+
+    if (
+      !signedFileResult
+    ) {
 
       return;
 
     }
 
 
+    signedFileResult.hidden =
+      false;
+
+
+    signedFileResult.innerHTML = `
+
+      <strong>
+        ${escapeHtml(
+          heading
+        )}
+      </strong>
+
+      <br>
+
+      ${escapeHtml(
+        file.name
+      )}
+
+      <br>
+
+      Size:
+      ${escapeHtml(
+        formatFileSize(
+          file.size
+        )
+      )}
+
+      ${
+        note
+
+          ? `
+            <br>
+            <small>
+              ${escapeHtml(
+                note
+              )}
+            </small>
+          `
+
+          : ""
+      }
+
+    `;
+
+  }
+
+
+  /* =====================================================
+     MANUAL FALLBACK
+  ===================================================== */
+
+  function handleManualFileSelection() {
+
+    resetSignedFileState();
+
+
+    const file =
+      signedPdfFile
+        ?.files
+        ?.[0];
+
+
     if (
-      selectedSignedFile.size >
-      26214400
+      !file
+    ) {
+
+      return;
+
+    }
+
+
+    selectedSignedFile =
+      file;
+
+
+    selectedSigningSource =
+      "manual";
+
+
+    showSelectedFile(
+
+      file,
+
+      "Selected signed PDF",
+
+      "Check the PDF before submitting."
+
+    );
+
+
+    verifySignedDocument.disabled =
+      false;
+
+
+    updateSigningReadiness();
+
+  }
+
+
+  async function verifyManualSignedPdf() {
+
+    if (
+
+      !selectedSignedFile ||
+
+      selectedSigningSource !==
+        "manual"
+
     ) {
 
       showStatus(
-        "PDF exceeds the 25 MB storage limit.",
+        "Select the digitally signed PDF first.",
         "error"
       );
+
 
       return;
 
@@ -1758,137 +1809,49 @@
 
 
     showStatus(
-      "Checking PDF and calculating SHA-256..."
+      "Checking signed PDF..."
     );
 
 
     try {
 
-      const validPdf =
-        await isPdfFile(
-          selectedSignedFile
-        );
-
-
-      if (!validPdf) {
-
-        throw new Error(
-          "Selected file is not a valid PDF document."
-        );
-
-      }
-
-
-      const calculatedHash =
-        await calculateSha256(
-          selectedSignedFile
-        );
-
-
-      /*
-         A real PDF digital signature changes the PDF bytes.
-
-         If the uploaded file has exactly the same SHA-256
-         as the source controlled document, then no document
-         change occurred.
-      */
-
-      const sourceHash =
-        workspace
-          ?.current_document
-          ?.sha256
-          ?.toLowerCase();
-
-
-      if (
-        sourceHash &&
-        calculatedHash ===
-          sourceHash
-      ) {
-
-        throw new Error(
-          "The selected PDF is identical to the current controlled PDF. Please upload the PDF returned by the authorized digital-signature process."
-        );
-
-      }
-
-
       selectedSignedFileHash =
-        calculatedHash;
+        await validateSignedPdfFile(
+          selectedSignedFile
+        );
 
 
       selectedSignedFileVerified =
         true;
 
 
-      if (signedFileResult) {
-
-        signedFileResult.hidden =
-          false;
+      bridgeSignatureValidated =
+        false;
 
 
-        signedFileResult.innerHTML = `
+      showSelectedFile(
 
-          <strong>
-            PDF Ready for Controlled Upload
-          </strong>
+        selectedSignedFile,
 
-          <br>
+        "✓ Signed PDF Ready",
 
-          ${escapeHtml(
-            selectedSignedFile.name
-          )}
+        "PDF structure checked. Manual fallback does not independently validate the DSC certificate chain in the browser."
 
-          <br>
-
-          Size:
-          ${escapeHtml(
-            formatFileSize(
-              selectedSignedFile.size
-            )
-          )}
-
-          <br><br>
-
-          SHA-256:
-
-          <span class="document-hash">
-
-            ${escapeHtml(
-              selectedSignedFileHash
-            )}
-
-          </span>
-
-          <br><br>
-
-          <small>
-            File structure and SHA-256 have been checked locally.
-            Cryptographic DSC/eSign certificate validity is not independently verified by this browser step.
-          </small>
-
-        `;
-
-      }
+      );
 
 
       showStatus(
-        "Signed PDF is ready for controlled upload. Confirm the signing method and real signature/transaction reference.",
+
+        "Signed PDF is ready. Enter the DSC reference and confirm the manual fallback declaration.",
+
         "success"
+
       );
-
-
-      updateSigningReadiness();
 
     }
 
+
     catch (error) {
-
-      console.error(
-        "PDF verification error:",
-        error
-      );
-
 
       selectedSignedFileHash =
         null;
@@ -1899,20 +1862,25 @@
 
 
       showStatus(
+
         error?.message ||
-        "Unable to verify the selected PDF.",
+
+        "Unable to check the PDF.",
+
         "error"
+
       );
 
-
-      updateSigningReadiness();
-
     }
+
 
     finally {
 
       verifySignedDocument.disabled =
         false;
+
+
+      updateSigningReadiness();
 
     }
 
@@ -1920,26 +1888,925 @@
 
 
   /* =====================================================
-     READINESS
+     DSC BRIDGE
+
+     Future native/extension bridge exposes:
+
+     window.IRWMM_DSC_BRIDGE
+
+     Required:
+
+     getStatus()
+
+     signPdf({
+       pdfBytes,
+       fileName,
+       workflowId,
+       documentId,
+       stationName,
+       recordName,
+       preserveExistingSignatures
+     })
+
+     signPdf must return:
+
+     signedPdf
+     OR
+     signedPdfBase64
+
+     signatureReference
+     signatureValid === true
+     signerName
+     certificateSubject
+     certificateIssuer
+     certificateSerial
+     signedAt
+  ===================================================== */
+
+  function getDscBridge() {
+
+    const bridge =
+      window
+        .IRWMM_DSC_BRIDGE;
+
+
+    if (
+
+      bridge &&
+
+      typeof bridge.signPdf ===
+        "function"
+
+    ) {
+
+      return bridge;
+
+    }
+
+
+    return null;
+
+  }
+
+
+  /* =====================================================
+     DSC STATUS UI
+  ===================================================== */
+
+  function setDscBridgeUi(
+    state,
+    title,
+    detail
+  ) {
+
+    dscBridgeStatusBox
+      ?.classList
+      .remove(
+        "ready",
+        "error"
+      );
+
+
+    if (
+      state ===
+      "ready"
+    ) {
+
+      dscBridgeStatusBox
+        ?.classList
+        .add(
+          "ready"
+        );
+
+    }
+
+
+    else if (
+      state ===
+      "error"
+    ) {
+
+      dscBridgeStatusBox
+        ?.classList
+        .add(
+          "error"
+        );
+
+    }
+
+
+    if (
+      dscBridgeStatus
+    ) {
+
+      dscBridgeStatus.textContent =
+        title;
+
+    }
+
+
+    if (
+      dscBridgeDetail
+    ) {
+
+      dscBridgeDetail.textContent =
+        detail;
+
+    }
+
+  }
+
+
+  /* =====================================================
+     CHECK DSC BRIDGE
+  ===================================================== */
+
+  async function checkDscBridge() {
+
+    dscBridgeAvailable =
+      false;
+
+
+    dscBridgeInfo =
+      null;
+
+
+    setDscBridgeUi(
+
+      "normal",
+
+      "Checking DSC Bridge...",
+
+      "Checking the local DSC integration on this computer."
+
+    );
+
+
+    const bridge =
+      getDscBridge();
+
+
+    if (
+      !bridge
+    ) {
+
+      setDscBridgeUi(
+
+        "error",
+
+        "DSC Bridge not available",
+
+        "Install/connect the IRWMM DSC Bridge to sign directly from this page. Manual signed-PDF fallback remains available below."
+
+      );
+
+
+      updateDscButtonState();
+
+
+      return false;
+
+    }
+
+
+    try {
+
+      const status =
+
+        typeof bridge.getStatus ===
+        "function"
+
+          ? await bridge.getStatus()
+
+          : {
+              available:
+                true
+            };
+
+
+      if (
+        status?.available ===
+        false
+      ) {
+
+        throw new Error(
+
+          status?.message ||
+
+          "DSC Bridge is not ready."
+
+        );
+
+      }
+
+
+      dscBridgeAvailable =
+        true;
+
+
+      dscBridgeInfo =
+        status ||
+        {
+          available:
+            true
+        };
+
+
+      const detail =
+
+        [
+
+          status?.provider,
+
+          status?.version
+            ? `Bridge ${status.version}`
+            : null
+
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+
+      setDscBridgeUi(
+
+        "ready",
+
+        "DSC Bridge ready",
+
+        detail ||
+
+        "Local DSC signing is available on this computer."
+
+      );
+
+
+      updateDscButtonState();
+
+
+      return true;
+
+    }
+
+
+    catch (error) {
+
+      console.error(
+        "DSC Bridge check error:",
+        error
+      );
+
+
+      setDscBridgeUi(
+
+        "error",
+
+        "DSC Bridge not ready",
+
+        error?.message ||
+
+        "The local DSC integration could not be used."
+
+      );
+
+
+      updateDscButtonState();
+
+
+      return false;
+
+    }
+
+  }
+
+
+  /* =====================================================
+     DSC BUTTON STATE
+  ===================================================== */
+
+  function updateDscButtonState() {
+
+    if (
+      !signWithDscButton
+    ) {
+
+      return;
+
+    }
+
+
+    const canAct =
+
+      workspace
+        ?.can_sign_and_forward ===
+      true ||
+
+      workspace
+        ?.can_final_approve ===
+      true;
+
+
+    signWithDscButton.disabled =
+
+      !(
+
+        dscBridgeAvailable &&
+
+        workspace
+          ?.current_document
+          ?.document_id &&
+
+        canAct &&
+
+        !signingActionRunning
+
+      );
+
+  }
+
+
+  /* =====================================================
+     BASE64 HELPER
+  ===================================================== */
+
+  function base64ToUint8Array(
+    base64
+  ) {
+
+    const clean =
+      String(
+        base64 ||
+        ""
+      )
+        .replace(
+          /^data:application\/pdf;base64,/i,
+          ""
+        )
+        .replace(
+          /\s+/g,
+          ""
+        );
+
+
+    const binary =
+      atob(
+        clean
+      );
+
+
+    const bytes =
+      new Uint8Array(
+        binary.length
+      );
+
+
+    for (
+      let i = 0;
+      i < binary.length;
+      i++
+    ) {
+
+      bytes[i] =
+        binary.charCodeAt(
+          i
+        );
+
+    }
+
+
+    return bytes;
+
+  }
+
+
+  /* =====================================================
+     NORMALIZE SIGNED PDF FROM BRIDGE
+  ===================================================== */
+
+  function normalizeBridgeSignedPdf(
+    result
+  ) {
+
+    if (
+      !result
+    ) {
+
+      throw new Error(
+        "DSC Bridge did not return a signing result."
+      );
+
+    }
+
+
+    let blob =
+      null;
+
+
+    if (
+      result.signedPdf instanceof
+      Blob
+    ) {
+
+      blob =
+        result.signedPdf;
+
+    }
+
+
+    else if (
+      result.signedPdf instanceof
+      ArrayBuffer
+    ) {
+
+      blob =
+        new Blob(
+          [
+            result.signedPdf
+          ],
+          {
+            type:
+              "application/pdf"
+          }
+        );
+
+    }
+
+
+    else if (
+      ArrayBuffer.isView(
+        result.signedPdf
+      )
+    ) {
+
+      blob =
+        new Blob(
+          [
+            result.signedPdf
+          ],
+          {
+            type:
+              "application/pdf"
+          }
+        );
+
+    }
+
+
+    else if (
+      result.signedPdfBase64
+    ) {
+
+      blob =
+        new Blob(
+          [
+            base64ToUint8Array(
+              result.signedPdfBase64
+            )
+          ],
+          {
+            type:
+              "application/pdf"
+          }
+        );
+
+    }
+
+
+    if (
+      !blob
+    ) {
+
+      throw new Error(
+        "DSC Bridge did not return the complete signed PDF."
+      );
+
+    }
+
+
+    return new File(
+
+      [
+        blob
+      ],
+
+      getDownloadFilename(
+        "_signed"
+      ),
+
+      {
+        type:
+          "application/pdf"
+      }
+
+    );
+
+  }
+
+
+  /* =====================================================
+     SIGNER INFORMATION
+  ===================================================== */
+
+  function renderBridgeSigner(
+    result
+  ) {
+
+    if (
+      dscSignerResult
+    ) {
+
+      dscSignerResult.hidden =
+        false;
+
+    }
+
+
+    if (
+      dscSignerName
+    ) {
+
+      dscSignerName.textContent =
+        displayValue(
+          result?.signerName,
+          "DSC Signer"
+        );
+
+    }
+
+
+    const certificate =
+
+      [
+
+        result?.certificateSubject,
+
+        result?.certificateIssuer
+          ? `Issuer: ${result.certificateIssuer}`
+          : null,
+
+        result?.certificateSerial
+          ? `Serial: ${result.certificateSerial}`
+          : null
+
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+
+    if (
+      dscCertificateInfo
+    ) {
+
+      dscCertificateInfo.textContent =
+
+        certificate ||
+
+        "Validated by DSC Bridge";
+
+    }
+
+
+    if (
+      dscSignedAt
+    ) {
+
+      dscSignedAt.textContent =
+        formatDateTime(
+
+          result?.signedAt ||
+
+          new Date()
+            .toISOString()
+
+        );
+
+    }
+
+  }
+
+
+  /* =====================================================
+     SIGN CURRENT PDF WITH DSC
+  ===================================================== */
+
+  async function signCurrentPdfWithDsc() {
+
+    if (
+      signingActionRunning
+    ) {
+
+      return;
+
+    }
+
+
+    let bridge =
+      getDscBridge();
+
+
+    if (
+
+      !bridge ||
+
+      !dscBridgeAvailable
+
+    ) {
+
+      await checkDscBridge();
+
+
+      if (
+        !dscBridgeAvailable
+      ) {
+
+        return;
+
+      }
+
+
+      bridge =
+        getDscBridge();
+
+    }
+
+
+    if (
+      !workspace
+        ?.current_document
+        ?.document_id
+    ) {
+
+      showStatus(
+        "CTR PDF is not available for signing.",
+        "error"
+      );
+
+
+      return;
+
+    }
+
+
+    if (
+
+      workspace
+        ?.can_sign_and_forward !==
+      true &&
+
+      workspace
+        ?.can_final_approve !==
+      true
+
+    ) {
+
+      showStatus(
+        "This signing action is not assigned to you.",
+        "error"
+      );
+
+
+      return;
+
+    }
+
+
+    signWithDscButton.disabled =
+      true;
+
+
+    refreshDscBridge.disabled =
+      true;
+
+
+    resetSignedFileState();
+
+
+    try {
+
+      showStatus(
+        "Checking current workflow stage..."
+      );
+
+
+      await refreshWorkspaceBeforeAction();
+
+
+      showStatus(
+        "Preparing CTR PDF for DSC signing..."
+      );
+
+
+      const pdfBytes =
+        await fetchCurrentPdfBytes();
+
+
+      showStatus(
+        "Waiting for DSC signing on this computer..."
+      );
+
+
+      const result =
+        await bridge.signPdf(
+          {
+
+            pdfBytes:
+              pdfBytes,
+
+            fileName:
+              getDownloadFilename(),
+
+            workflowId:
+              workflowId,
+
+            documentId:
+              workspace
+                .current_document
+                .document_id,
+
+            stationName:
+              workspace
+                ?.station_name ||
+              "",
+
+            stationCode:
+              workspace
+                ?.station_code ||
+              "",
+
+            recordName:
+              workspace
+                ?.record_name ||
+              "CTR",
+
+            preserveExistingSignatures:
+              true
+
+          }
+        );
+
+
+      /*
+         Bridge must verify the PDF digital signature
+         before returning success.
+      */
+
+      if (
+        result?.signatureValid !==
+        true
+      ) {
+
+        throw new Error(
+
+          result?.message ||
+
+          "The DSC Bridge did not confirm a valid PDF digital signature."
+
+        );
+
+      }
+
+
+      const reference =
+
+        result?.signatureReference ||
+
+        result?.transactionId ||
+
+        result?.signatureId ||
+
+        "";
+
+
+      if (
+        !reference
+      ) {
+
+        throw new Error(
+          "DSC Bridge did not return a signature reference."
+        );
+
+      }
+
+
+      const signedFile =
+        normalizeBridgeSignedPdf(
+          result
+        );
+
+
+      const hash =
+        await validateSignedPdfFile(
+          signedFile
+        );
+
+
+      selectedSignedFile =
+        signedFile;
+
+
+      selectedSignedFileHash =
+        hash;
+
+
+      selectedSignedFileVerified =
+        true;
+
+
+      selectedSigningSource =
+        "bridge";
+
+
+      bridgeSignatureValidated =
+        true;
+
+
+      /*
+         Auto-record real signature reference.
+      */
+
+      signatureReference.value =
+        reference;
+
+
+      renderBridgeSigner(
+        result
+      );
+
+
+      showStatus(
+
+        "CTR PDF digitally signed with DSC and verified by the local bridge.",
+
+        "success"
+
+      );
+
+
+      updateSigningReadiness();
+
+    }
+
+
+    catch (error) {
+
+      console.error(
+        "DSC signing error:",
+        error
+      );
+
+
+      resetSignedFileState();
+
+
+      showStatus(
+
+        error?.message ||
+
+        "DSC signing could not be completed.",
+
+        "error"
+
+      );
+
+    }
+
+
+    finally {
+
+      refreshDscBridge.disabled =
+        false;
+
+
+      updateDscButtonState();
+
+    }
+
+  }
+
+
+  /* =====================================================
+     SIGNATURE REFERENCE
+  ===================================================== */
+
+  function getSignatureReference() {
+
+    return (
+
+      signatureReference
+        ?.value
+        ?.trim() ||
+
+      ""
+
+    );
+
+  }
+
+
+  /* =====================================================
+     READY TO SUBMIT?
   ===================================================== */
 
   function isSigningReady() {
-
-    const hasMethod =
-      Boolean(
-        signatureMethod
-          ?.value
-          ?.trim()
-      );
-
-
-    const hasReference =
-      Boolean(
-        signatureReference
-          ?.value
-          ?.trim()
-      );
-
 
     const hasDocument =
       Boolean(
@@ -1950,167 +2817,238 @@
 
 
     const canAct =
-      workspace?.can_sign_and_forward ===
-        true ||
-      workspace?.can_final_approve ===
-        true;
+
+      workspace
+        ?.can_sign_and_forward ===
+      true ||
+
+      workspace
+        ?.can_final_approve ===
+      true;
 
 
-    return Boolean(
-      hasMethod &&
-      hasReference &&
-      selectedSignedFile &&
-      selectedSignedFileVerified &&
-      selectedSignedFileHash &&
-      hasDocument &&
-      canAct &&
-      !signingActionRunning
-    );
+    const commonReady =
+      Boolean(
 
-  }
+        getSignatureReference() &&
 
+        selectedSignedFile &&
 
-  function updateSigningReadiness() {
+        selectedSignedFileVerified &&
 
-    if (!completeSigningAction) {
+        selectedSignedFileHash &&
 
-      return;
+        hasDocument &&
 
-    }
+        canAct &&
+
+        !signingActionRunning
+
+      );
 
 
-    const ready =
-      isSigningReady();
+    if (
+      !commonReady
+    ) {
 
-
-    completeSigningAction.disabled =
-      !ready;
-
-
-    if (signingActionRunning) {
-
-      completeSigningAction.title =
-        "Workflow action is being processed.";
-
-      return;
-
-    }
-
-
-    if (!workspace?.current_document) {
-
-      completeSigningAction.title =
-        "A controlled source PDF must exist before digital signing.";
-
-      return;
+      return false;
 
     }
 
 
     if (
-      !workspace?.can_sign_and_forward &&
-      !workspace?.can_final_approve
+      selectedSigningSource ===
+      "bridge"
     ) {
 
-      completeSigningAction.title =
-        "This workflow is not currently assigned to you.";
-
-      return;
-
-    }
-
-
-    if (!selectedSignedFileVerified) {
-
-      completeSigningAction.title =
-        "Select and verify the digitally signed PDF.";
-
-      return;
+      return (
+        bridgeSignatureValidated ===
+        true
+      );
 
     }
 
 
     if (
-      !signatureMethod
-        ?.value
-        ?.trim()
+      selectedSigningSource ===
+      "manual"
     ) {
 
-      completeSigningAction.title =
-        "Select the authorized signing method.";
-
-      return;
+      return (
+        manualSignedConfirmation
+          ?.checked ===
+        true
+      );
 
     }
 
 
-    if (
-      !signatureReference
-        ?.value
-        ?.trim()
-    ) {
-
-      completeSigningAction.title =
-        "Enter the real signature or transaction reference.";
-
-      return;
-
-    }
-
-
-    completeSigningAction.title =
-      workspace?.can_final_approve
-        ? "Upload this signed PDF and complete Final Approval."
-        : "Upload this signed PDF and forward the CTR to the next officer.";
+    return false;
 
   }
 
 
   /* =====================================================
-     CONTROLLED STORAGE PATH
+     UPDATE SUBMIT BUTTON
+  ===================================================== */
 
-     Hash is used as filename so repeated submission of the
-     same exact signed PDF refers to the same object path.
+  function updateSigningReadiness() {
+
+    if (
+      !completeSigningAction
+    ) {
+
+      return;
+
+    }
+
+
+    completeSigningAction.disabled =
+      !isSigningReady();
+
+
+    if (
+      signingActionRunning
+    ) {
+
+      completeSigningAction.title =
+        "Signing workflow action is being processed.";
+
+
+      updateDscButtonState();
+
+
+      return;
+
+    }
+
+
+    if (
+      !workspace?.current_document
+    ) {
+
+      completeSigningAction.title =
+        "A CTR PDF must exist before signing.";
+
+    }
+
+
+    else if (
+
+      !workspace
+        ?.can_sign_and_forward &&
+
+      !workspace
+        ?.can_final_approve
+
+    ) {
+
+      completeSigningAction.title =
+        "This workflow is not currently assigned to you.";
+
+    }
+
+
+    else if (
+      !selectedSignedFileVerified
+    ) {
+
+      completeSigningAction.title =
+        "Sign the PDF with DSC or use the manual fallback.";
+
+    }
+
+
+    else if (
+      !getSignatureReference()
+    ) {
+
+      completeSigningAction.title =
+        "A real DSC / transaction reference is required.";
+
+    }
+
+
+    else if (
+
+      selectedSigningSource ===
+        "manual" &&
+
+      manualSignedConfirmation
+        ?.checked !==
+      true
+
+    ) {
+
+      completeSigningAction.title =
+        "Confirm the manual DSC declaration.";
+
+    }
+
+
+    else {
+
+      completeSigningAction.title =
+
+        workspace
+          ?.can_final_approve
+
+          ? "Submit the signed PDF and complete Final Approval."
+
+          : "Submit the signed PDF and forward the CTR.";
+
+    }
+
+
+    updateDscButtonState();
+
+  }
+
+
+  /* =====================================================
+     STORAGE PATH
   ===================================================== */
 
   function buildSignedStoragePath() {
 
     if (
+
       !workflowId ||
+
       !selectedSignedFileHash
+
     ) {
 
       throw new Error(
-        "Workflow or PDF hash is unavailable."
+        "Workflow or signed PDF information is unavailable."
       );
 
     }
 
 
     const folder =
-      workspace?.can_final_approve
+
+      workspace
+        ?.can_final_approve
+
         ? "final"
+
         : "signed";
 
 
     return (
+
       `${workflowId}/` +
       `${folder}/` +
       `${selectedSignedFileHash}.pdf`
+
     );
 
   }
 
 
   /* =====================================================
-     CHECK EXISTING OBJECT
-
-     Useful when:
-       upload succeeded,
-       but RPC failed,
-       and user retries same PDF.
-
-     We do not overwrite.
+     CHECK EXISTING STORAGE OBJECT
   ===================================================== */
 
   async function storageObjectExists(
@@ -2121,7 +3059,9 @@
       await waitForSupabaseClient();
 
 
-    if (!client) {
+    if (
+      !client
+    ) {
 
       throw new Error(
         "Supabase connection is unavailable."
@@ -2161,28 +3101,44 @@
         .list(
           folder,
           {
+
             search:
               filename,
+
             limit:
               10
+
           }
         );
 
 
-    if (error) {
+    if (
+      error
+    ) {
 
       return false;
 
     }
 
 
-    return Array.isArray(data)
-      &&
+    return (
+
+      Array.isArray(
+        data
+      ) &&
+
       data.some(
-        (item) =>
-          item.name ===
-          filename
-      );
+        function (item) {
+
+          return (
+            item.name ===
+            filename
+          );
+
+        }
+      )
+
+    );
 
   }
 
@@ -2194,8 +3150,11 @@
   async function uploadSignedPdf() {
 
     if (
+
       !selectedSignedFile ||
+
       !selectedSignedFileHash
+
     ) {
 
       throw new Error(
@@ -2209,7 +3168,9 @@
       await waitForSupabaseClient();
 
 
-    if (!client) {
+    if (
+      !client
+    ) {
 
       throw new Error(
         "Supabase connection is unavailable."
@@ -2231,9 +3192,13 @@
           STORAGE_BUCKET
         )
         .upload(
+
           storagePath,
+
           selectedSignedFile,
+
           {
+
             contentType:
               "application/pdf",
 
@@ -2242,11 +3207,15 @@
 
             upsert:
               false
+
           }
+
         );
 
 
-    if (!error) {
+    if (
+      !error
+    ) {
 
       return storagePath;
 
@@ -2254,11 +3223,10 @@
 
 
     /*
-       Do not overwrite.
+       Never overwrite an existing signed PDF.
 
-       If an identical object already exists because the
-       previous attempt uploaded successfully but the RPC
-       failed afterwards, allow the workflow RPC to retry.
+       Retry is allowed only if the exact same
+       hash-named object already exists.
     */
 
     const exists =
@@ -2267,7 +3235,9 @@
       );
 
 
-    if (exists) {
+    if (
+      exists
+    ) {
 
       return storagePath;
 
@@ -2280,7 +3250,7 @@
 
 
   /* =====================================================
-     INTERMEDIATE SIGN + FORWARD
+     SIGN + FORWARD
   ===================================================== */
 
   async function performSignAndForward(
@@ -2291,7 +3261,9 @@
       await waitForSupabaseClient();
 
 
-    if (!client) {
+    if (
+      !client
+    ) {
 
       throw new Error(
         "Supabase connection is unavailable."
@@ -2305,7 +3277,9 @@
       error
     } =
       await client.rpc(
+
         "sign_and_forward_ctr",
+
         {
 
           p_workflow_id:
@@ -2317,14 +3291,10 @@
               .document_id,
 
           p_signature_method:
-            signatureMethod
-              .value
-              .trim(),
+            DEFAULT_SIGNATURE_METHOD,
 
           p_signature_reference:
-            signatureReference
-              .value
-              .trim(),
+            getSignatureReference(),
 
           p_signed_document_path:
             storagePath,
@@ -2339,10 +3309,13 @@
             null
 
         }
+
       );
 
 
-    if (error) {
+    if (
+      error
+    ) {
 
       throw error;
 
@@ -2355,7 +3328,7 @@
 
 
   /* =====================================================
-     FINAL SIGN + APPROVE
+     FINAL APPROVAL
   ===================================================== */
 
   async function performFinalApproval(
@@ -2366,7 +3339,9 @@
       await waitForSupabaseClient();
 
 
-    if (!client) {
+    if (
+      !client
+    ) {
 
       throw new Error(
         "Supabase connection is unavailable."
@@ -2380,7 +3355,9 @@
       error
     } =
       await client.rpc(
+
         "final_sign_and_approve_initial_ctr",
+
         {
 
           p_workflow_id:
@@ -2392,14 +3369,10 @@
               .document_id,
 
           p_signature_method:
-            signatureMethod
-              .value
-              .trim(),
+            DEFAULT_SIGNATURE_METHOD,
 
           p_signature_reference:
-            signatureReference
-              .value
-              .trim(),
+            getSignatureReference(),
 
           p_final_signed_document_path:
             storagePath,
@@ -2414,10 +3387,13 @@
             null
 
         }
+
       );
 
 
-    if (error) {
+    if (
+      error
+    ) {
 
       throw error;
 
@@ -2430,14 +3406,131 @@
 
 
   /* =====================================================
-     COMPLETE SIGNING ACTION
+     FETCH WORKSPACE
+  ===================================================== */
+
+  async function fetchWorkspace() {
+
+    const client =
+      await waitForSupabaseClient();
+
+
+    if (
+      !client
+    ) {
+
+      throw new Error(
+        "Supabase connection is unavailable."
+      );
+
+    }
+
+
+    const {
+      data,
+      error
+    } =
+      await client.rpc(
+
+        "get_ctr_signing_workspace",
+
+        {
+
+          p_workflow_id:
+            workflowId
+
+        }
+
+      );
+
+
+    if (
+      error
+    ) {
+
+      throw error;
+
+    }
+
+
+    if (
+      !data
+    ) {
+
+      throw new Error(
+        "CTR signing workflow could not be loaded."
+      );
+
+    }
+
+
+    return data;
+
+  }
+
+
+  /* =====================================================
+     REFRESH WORKFLOW BEFORE IRREVERSIBLE ACTION
+  ===================================================== */
+
+  async function refreshWorkspaceBeforeAction() {
+
+    const oldDocumentId =
+      workspace
+        ?.current_document
+        ?.document_id;
+
+
+    const latest =
+      await fetchWorkspace();
+
+
+    const newDocumentId =
+      latest
+        ?.current_document
+        ?.document_id;
+
+
+    if (
+      oldDocumentId !==
+      newDocumentId
+    ) {
+
+      workspace =
+        latest;
+
+
+      renderWorkspace();
+
+
+      resetSignedFileState();
+
+
+      throw new Error(
+        "The CTR PDF changed while this page was open. Review the latest PDF before signing."
+      );
+
+    }
+
+
+    workspace =
+      latest;
+
+  }
+
+
+  /* =====================================================
+     COMPLETE WORKFLOW ACTION
   ===================================================== */
 
   async function completeWorkflowSigning() {
 
     if (
+
       signingActionRunning ||
+
       !isSigningReady()
+
     ) {
 
       return;
@@ -2446,33 +3539,39 @@
 
 
     const finalApproval =
-      workspace?.can_final_approve ===
+
+      workspace
+        ?.can_final_approve ===
       true;
-
-
-    const actionName =
-      finalApproval
-        ? "Digital Sign & Final Approve"
-        : "Digital Sign & Forward";
 
 
     const confirmation =
       window.confirm(
+
         finalApproval
 
           ? (
+
               "Confirm Final Approval?\n\n" +
-              "The uploaded PDF will become the permanent final approved CTR document. This workflow cannot be withdrawn after Final Approval."
+
+              "The digitally signed PDF will become the final approved CTR document."
+
             )
 
           : (
-              "Confirm Digital Sign & Forward?\n\n" +
-              "The uploaded signed PDF will become the current controlled document and will be forwarded to the next officer."
+
+              "Confirm Submit & Forward?\n\n" +
+
+              "The digitally signed PDF will be forwarded to the next workflow stage."
+
             )
+
       );
 
 
-    if (!confirmation) {
+    if (
+      !confirmation
+    ) {
 
       return;
 
@@ -2486,26 +3585,19 @@
     updateSigningReadiness();
 
 
-    if (completeSigningAction) {
+    completeSigningAction.textContent =
 
-      completeSigningAction.textContent =
-        finalApproval
-          ? "Final Approval Processing..."
-          : "Forwarding...";
+      finalApproval
 
-    }
+        ? "Final Approval Processing..."
+
+        : "Forwarding...";
 
 
     try {
 
-      /*
-         Recalculate hash immediately before upload.
-
-         This protects against accidental stale local state.
-      */
-
       showStatus(
-        "Rechecking signed PDF integrity..."
+        "Rechecking signed PDF..."
       );
 
 
@@ -2521,17 +3613,11 @@
       ) {
 
         throw new Error(
-          "Selected PDF changed after verification. Verify the PDF again."
+          "Signed PDF changed after verification. Check it again."
         );
 
       }
 
-
-      /*
-         Current workflow may have changed while page was
-         open. Reload context immediately before performing
-         the irreversible workflow action.
-      */
 
       showStatus(
         "Checking current workflow stage..."
@@ -2542,48 +3628,39 @@
 
 
       if (
-        !workspace
-          ?.current_document
-          ?.document_id
-      ) {
 
-        throw new Error(
-          "Current controlled PDF is no longer available."
-        );
-
-      }
-
-
-      if (
         finalApproval &&
-        !workspace?.can_final_approve
+
+        !workspace
+          ?.can_final_approve
+
       ) {
 
         throw new Error(
-          "Final Approval is no longer assigned to this user. Refresh the workflow."
+          "Final Approval is no longer assigned to this user."
         );
 
       }
 
 
       if (
+
         !finalApproval &&
-        !workspace?.can_sign_and_forward
+
+        !workspace
+          ?.can_sign_and_forward
+
       ) {
 
         throw new Error(
-          "This workflow is no longer available for forwarding by this user."
+          "This workflow is no longer available for forwarding."
         );
 
       }
 
-
-      /*
-         Upload to private immutable storage.
-      */
 
       showStatus(
-        "Uploading digitally signed PDF to controlled storage..."
+        "Saving digitally signed PDF..."
       );
 
 
@@ -2591,146 +3668,121 @@
         await uploadSignedPdf();
 
 
-      /*
-         Commit workflow action.
-      */
-
       showStatus(
+
         finalApproval
+
           ? "Completing Final Approval..."
-          : "Forwarding CTR to the next officer..."
+
+          : "Forwarding CTR..."
+
       );
 
 
-      let result;
+      if (
+        finalApproval
+      ) {
 
-
-      if (finalApproval) {
-
-        result =
-          await performFinalApproval(
-            storagePath
-          );
+        await performFinalApproval(
+          storagePath
+        );
 
       }
+
 
       else {
 
-        result =
-          await performSignAndForward(
-            storagePath
-          );
+        await performSignAndForward(
+          storagePath
+        );
 
       }
 
 
-      console.log(
-        "CTR signing action completed:",
-        result
-      );
+      signingHeroStatus.textContent =
+
+        finalApproval
+
+          ? "● Final Approved"
+
+          : "● Forwarded";
 
 
       showStatus(
+
         finalApproval
+
           ? "Final signed CTR approved successfully."
-          : "CTR digitally signed and forwarded successfully.",
+
+          : "Signed CTR forwarded successfully.",
+
         "success"
+
       );
 
 
-      if (signingHeroStatus) {
-
-        signingHeroStatus.textContent =
-          finalApproval
-            ? "● Final Approved"
-            : "● Forwarded";
-
-      }
+      completeSigningAction.disabled =
+        true;
 
 
-      /*
-         Prevent accidental second click.
-      */
-
-      if (completeSigningAction) {
-
-        completeSigningAction.disabled =
-          true;
-
-      }
+      signWithDscButton.disabled =
+        true;
 
 
-      if (signedPdfFile) {
-
-        signedPdfFile.disabled =
-          true;
-
-      }
+      refreshDscBridge.disabled =
+        true;
 
 
-      if (signatureMethod) {
-
-        signatureMethod.disabled =
-          true;
-
-      }
+      signedPdfFile.disabled =
+        true;
 
 
-      if (signatureReference) {
-
-        signatureReference.disabled =
-          true;
-
-      }
+      signatureReference.disabled =
+        true;
 
 
-      if (signingRemarks) {
-
-        signingRemarks.disabled =
-          true;
-
-      }
+      signingRemarks.disabled =
+        true;
 
 
-      /*
-         Send user back to the correct register.
-      */
+      manualSignedConfirmation.disabled =
+        true;
+
 
       window.setTimeout(
-        () => {
+        function () {
 
-          if (finalApproval) {
+          window.location.href =
 
-            window.location.href =
-              "approved.html";
+            finalApproval
 
-          }
+              ? "approved.html"
 
-          else {
-
-            window.location.href =
-              "approvals.html";
-
-          }
+              : "approvals.html";
 
         },
-        1200
+        1000
       );
 
     }
 
+
     catch (error) {
 
       console.error(
-        `${actionName} error:`,
+        "CTR signing action error:",
         error
       );
 
 
       showStatus(
+
         error?.message ||
-        `${actionName} could not be completed.`,
+
+        "Signing action could not be completed.",
+
         "error"
+
       );
 
 
@@ -2746,157 +3798,8 @@
 
 
   /* =====================================================
-     REFRESH BEFORE IRREVERSIBLE ACTION
+     LOAD PAGE
   ===================================================== */
-
-  async function refreshWorkspaceBeforeAction() {
-
-    const client =
-      await waitForSupabaseClient();
-
-
-    if (!client) {
-
-      throw new Error(
-        "Supabase connection is unavailable."
-      );
-
-    }
-
-
-    const oldDocumentId =
-      workspace
-        ?.current_document
-        ?.document_id;
-
-
-    const {
-      data,
-      error
-    } =
-      await client.rpc(
-        "get_ctr_signing_workspace",
-        {
-          p_workflow_id:
-            workflowId
-        }
-      );
-
-
-    if (error) {
-
-      throw error;
-
-    }
-
-
-    if (!data) {
-
-      throw new Error(
-        "Workflow could not be refreshed."
-      );
-
-    }
-
-
-    const newDocumentId =
-      data
-        ?.current_document
-        ?.document_id;
-
-
-    if (
-      oldDocumentId !==
-      newDocumentId
-    ) {
-
-      workspace =
-        data;
-
-
-      renderWorkspace();
-
-
-      throw new Error(
-        "The controlled PDF changed while this page was open. Review the latest document before signing."
-      );
-
-    }
-
-
-    workspace =
-      data;
-
-  }
-
-
-  /* =====================================================
-     LOAD WORKSPACE
-  ===================================================== */
-
-  async function fetchWorkspace() {
-
-    const client =
-      await waitForSupabaseClient();
-
-
-    if (!client) {
-
-      throw new Error(
-        "Supabase connection is unavailable."
-      );
-
-    }
-
-
-    const {
-      data,
-      error
-    } =
-      await client.rpc(
-        "get_ctr_signing_workspace",
-        {
-          p_workflow_id:
-            workflowId
-        }
-      );
-
-
-    if (error) {
-
-      throw error;
-
-    }
-
-
-    if (!data) {
-
-      throw new Error(
-        "CTR workflow could not be loaded."
-      );
-
-    }
-
-
-    return data;
-
-  }
-
-
-  function renderWorkspace() {
-
-    renderSummary();
-
-    renderCurrentDocument();
-
-    renderRoute();
-
-    renderDocumentChain();
-
-    configureActionMode();
-
-  }
-
 
   async function loadSigningWorkspace() {
 
@@ -2904,20 +3807,21 @@
       getWorkflowIdFromUrl();
 
 
-    if (!workflowId) {
+    if (
+      !workflowId
+    ) {
+
+      signingHeroStatus.textContent =
+        "● Workflow Missing";
+
 
       showStatus(
+
         "Workflow ID is missing. Open Digital Signing from Pending Approvals.",
+
         "error"
+
       );
-
-
-      if (signingHeroStatus) {
-
-        signingHeroStatus.textContent =
-          "● Workflow Missing";
-
-      }
 
 
       return;
@@ -2926,7 +3830,7 @@
 
 
     showStatus(
-      "Loading signing workspace..."
+      "Loading signing page..."
     );
 
 
@@ -2936,64 +3840,75 @@
         await fetchWorkspace();
 
 
-      console.log(
-        "CTR SIGNING WORKSPACE:",
-        workspace
-      );
-
-
       renderWorkspace();
 
 
       if (
-        !workspace?.is_current_holder
+        !workspace
+          ?.is_current_holder
       ) {
 
         showStatus(
-          "You may view this workflow, but it is currently assigned to another user."
+          "This record is currently assigned to another user."
         );
 
       }
+
 
       else if (
-        !workspace?.current_document
+        !workspace
+          ?.current_document
       ) {
 
         showStatus(
-          "No controlled CTR PDF has been registered yet. Generate and register the CTR PDF before digital signing."
+          "Generate the CTR PDF before digital signing."
         );
 
       }
+
 
       else if (
-        workspace?.can_final_approve
+        workspace
+          ?.can_final_approve
       ) {
 
         showStatus(
-          "Review the latest controlled PDF. After completing the authorized digital-signature process, upload the signed PDF for Final Approval."
+          "Review the PDF and apply your DSC for Final Approval."
         );
 
       }
+
 
       else if (
-        workspace?.can_sign_and_forward
+        workspace
+          ?.can_sign_and_forward
       ) {
 
         showStatus(
-          "Review and download the current controlled PDF. Sign it through the authorized DSC/eSign process, then upload the signed PDF to continue the workflow."
+          "Review the PDF and apply your DSC to continue the workflow."
         );
 
       }
+
 
       else {
 
         showStatus(
-          "No signing action is currently available for this workflow."
+          "No signing action is currently available."
         );
 
       }
 
+
+      /*
+         Check whether IRWMM DSC Bridge exists
+         on this officer's computer.
+      */
+
+      await checkDscBridge();
+
     }
+
 
     catch (error) {
 
@@ -3003,19 +3918,19 @@
       );
 
 
+      signingHeroStatus.textContent =
+        "● Load Error";
+
+
       showStatus(
+
         error?.message ||
-        "Unable to load signing workspace.",
+
+        "Unable to load signing page.",
+
         "error"
+
       );
-
-
-      if (signingHeroStatus) {
-
-        signingHeroStatus.textContent =
-          "● Load Error";
-
-      }
 
     }
 
@@ -3029,35 +3944,42 @@
   openCurrentDocument
     ?.addEventListener(
       "click",
-      openControlledDocument
+      openCurrentPdf
     );
 
 
   downloadCurrentDocument
     ?.addEventListener(
       "click",
-      downloadControlledDocument
+      downloadCurrentPdf
+    );
+
+
+  refreshDscBridge
+    ?.addEventListener(
+      "click",
+      checkDscBridge
+    );
+
+
+  signWithDscButton
+    ?.addEventListener(
+      "click",
+      signCurrentPdfWithDsc
     );
 
 
   signedPdfFile
     ?.addEventListener(
       "change",
-      handleSignedFileSelection
+      handleManualFileSelection
     );
 
 
   verifySignedDocument
     ?.addEventListener(
       "click",
-      verifySelectedSignedPdf
-    );
-
-
-  signatureMethod
-    ?.addEventListener(
-      "change",
-      updateSigningReadiness
+      verifyManualSignedPdf
     );
 
 
@@ -3068,11 +3990,29 @@
     );
 
 
+  manualSignedConfirmation
+    ?.addEventListener(
+      "change",
+      updateSigningReadiness
+    );
+
+
   completeSigningAction
     ?.addEventListener(
       "click",
       completeWorkflowSigning
     );
+
+
+  /*
+     Future browser extension can fire this event
+     after the native DSC Bridge becomes available.
+  */
+
+  window.addEventListener(
+    "irwmm-dsc-bridge-ready",
+    checkDscBridge
+  );
 
 
   /* =====================================================
@@ -3086,10 +4026,15 @@
 
     document.addEventListener(
       "DOMContentLoaded",
-      loadSigningWorkspace
+      loadSigningWorkspace,
+      {
+        once:
+          true
+      }
     );
 
   }
+
 
   else {
 

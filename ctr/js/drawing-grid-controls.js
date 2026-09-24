@@ -1,7 +1,15 @@
 /* =========================================================
-   CTR DRAWING GRID CONTROLS V2
-   Systematic Row / Column controls
-   Fuse + CTR Terminals + Location Racks
+   IRWMM - CTR DRAWING GRID CONTROLS
+
+   PERFORMANCE VERSION
+
+   PURPOSE
+   ---------------------------------------------------------
+   - Station CTR Fuse Row / Column Controls
+   - Station CTR Terminal Row / Column Controls
+   - Location Fuse Grid Controls
+   - No full document MutationObserver
+   - No full rack redraw for normal terminal add/remove
 ========================================================= */
 
 (function () {
@@ -9,22 +17,37 @@
   "use strict";
 
 
-  /* =====================================================
-     EDIT ACCESS
-  ===================================================== */
+  /* =======================================================
+     ACCESS
+  ======================================================= */
 
   function canEdit() {
 
-    if (
-      typeof canEditCurrentStationDraft ===
-      "function"
-    ) {
+    try {
 
-      return !!canEditCurrentStationDraft();
+      if (
+        typeof canEditCurrentStationDraft ===
+        "function"
+      ) {
+
+        return Boolean(
+          canEditCurrentStationDraft()
+        );
+
+      }
+
+    }
+    catch (error) {
+
+      console.warn(
+        "CTR edit permission check:",
+        error
+      );
 
     }
 
-    return true;
+
+    return false;
 
   }
 
@@ -40,37 +63,117 @@
 
     }
 
+
     return canEdit();
 
   }
 
 
-  /* =====================================================
-     CONFIRM
-  ===================================================== */
+  /* =======================================================
+     SAFE ACCESS APPLY
+  ======================================================= */
 
-  function confirmAction(message) {
+  function applyAccessMode() {
 
-    return window.confirm(message);
+    if (
+      typeof scheduleStationAccessApply ===
+      "function"
+    ) {
+
+      scheduleStationAccessApply();
+
+      return;
+
+    }
+
+
+    if (
+      typeof applyStationBuilderAccessMode ===
+      "function"
+    ) {
+
+      applyStationBuilderAccessMode();
+
+    }
 
   }
 
 
-  /* =====================================================
+  /* =======================================================
+     BUTTON
+  ======================================================= */
+
+  function createGridButton(
+    text,
+    handler,
+    remove = false
+  ) {
+
+    const button =
+      document.createElement(
+        "button"
+      );
+
+
+    button.type =
+      "button";
+
+
+    button.className =
+      remove
+        ? "systematic-grid-btn systematic-remove-btn"
+        : "systematic-grid-btn";
+
+
+    button.textContent =
+      text;
+
+
+    button.hidden =
+      !canEdit();
+
+
+    if (
+      typeof handler ===
+      "function"
+    ) {
+
+      button.addEventListener(
+        "click",
+        handler
+      );
+
+    }
+
+
+    return button;
+
+  }
+
+
+  /* =======================================================
      FUSE HELPERS
-  ===================================================== */
+  ======================================================= */
 
   function createNewFuse(rack) {
+
+    const fuseDetails =
+      Array.isArray(
+        rack.fuseDetails
+      )
+        ? rack.fuseDetails
+        : [];
+
 
     const nextNumber =
       typeof getNextFuseNumber ===
       "function"
 
         ? getNextFuseNumber(
-            rack.fuseDetails
+            fuseDetails
           )
 
-        : rack.fuseDetails.length + 1;
+        : fuseDetails.length + 1;
 
 
     if (
@@ -88,7 +191,11 @@
     return {
 
       id:
-        `${Date.now()}-${Math.random()}`,
+        (
+          crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random()}`
+        ),
 
       label:
         `F${nextNumber}`,
@@ -110,7 +217,9 @@
 
 
     if (
-      Number.isInteger(saved) &&
+      Number.isInteger(
+        saved
+      ) &&
       saved > 0
     ) {
 
@@ -123,15 +232,9 @@
       Array.isArray(
         rack.fuseDetails
       )
-
         ? rack.fuseDetails.length
-
         : 0;
 
-
-    /*
-      Existing fuse points become first row.
-    */
 
     rack.fuseGridColumns =
       Math.max(
@@ -148,16 +251,16 @@
   function getFuseRows(rack) {
 
     const columns =
-      getFuseColumns(rack);
+      getFuseColumns(
+        rack
+      );
 
 
     const count =
       Array.isArray(
         rack.fuseDetails
       )
-
         ? rack.fuseDetails.length
-
         : 0;
 
 
@@ -171,9 +274,9 @@
   }
 
 
-  /* =====================================================
-     ADD FUSE ROW
-  ===================================================== */
+  /* =======================================================
+     FUSE ADD ROW
+  ======================================================= */
 
   function addFuseRow(
     rack,
@@ -193,24 +296,26 @@
       Array.isArray(
         rack.fuseDetails
       )
-
         ? rack.fuseDetails
-
         : [];
 
 
     const columns =
-      getFuseColumns(rack);
+      getFuseColumns(
+        rack
+      );
 
 
     for (
       let i = 0;
       i < columns;
-      i += 1
+      i++
     ) {
 
       rack.fuseDetails.push(
-        createNewFuse(rack)
+        createNewFuse(
+          rack
+        )
       );
 
     }
@@ -221,9 +326,9 @@
   }
 
 
-  /* =====================================================
-     ADD FUSE COLUMN
-  ===================================================== */
+  /* =======================================================
+     FUSE ADD COLUMN
+  ======================================================= */
 
   function addFuseColumn(
     rack,
@@ -243,22 +348,26 @@
       Array.isArray(
         rack.fuseDetails
       )
-
         ? rack.fuseDetails
-
         : [];
 
 
     const oldColumns =
-      getFuseColumns(rack);
+      getFuseColumns(
+        rack
+      );
 
 
     const oldRows =
-      getFuseRows(rack);
+      getFuseRows(
+        rack
+      );
 
 
     const source =
-      [...rack.fuseDetails];
+      [
+        ...rack.fuseDetails
+      ];
 
 
     const rebuilt =
@@ -268,17 +377,18 @@
     for (
       let rowIndex = 0;
       rowIndex < oldRows;
-      rowIndex += 1
+      rowIndex++
     ) {
+
+      const start =
+        rowIndex *
+        oldColumns;
+
 
       const rowItems =
         source.slice(
-
-          rowIndex * oldColumns,
-
-          rowIndex * oldColumns +
-          oldColumns
-
+          start,
+          start + oldColumns
         );
 
 
@@ -288,7 +398,9 @@
       ) {
 
         rowItems.push(
-          createNewFuse(rack)
+          createNewFuse(
+            rack
+          )
         );
 
       }
@@ -300,7 +412,9 @@
 
 
       rebuilt.push(
-        createNewFuse(rack)
+        createNewFuse(
+          rack
+        )
       );
 
     }
@@ -319,9 +433,9 @@
   }
 
 
-  /* =====================================================
-     REMOVE FUSE ROW
-  ===================================================== */
+  /* =======================================================
+     FUSE REMOVE ROW
+  ======================================================= */
 
   function removeFuseRow(
     rack,
@@ -337,12 +451,16 @@
     }
 
 
-    const rows =
-      getFuseRows(rack);
-
-
     const columns =
-      getFuseColumns(rack);
+      getFuseColumns(
+        rack
+      );
+
+
+    const rows =
+      getFuseRows(
+        rack
+      );
 
 
     if (
@@ -359,8 +477,8 @@
 
 
     if (
-      !confirmAction(
-        "Remove the last Fuse Row? Fuse details in that row will also be removed."
+      !confirm(
+        "Remove the last fuse row?"
       )
     ) {
 
@@ -369,13 +487,13 @@
     }
 
 
-    const startIndex =
-      (rows - 1) *
-      columns;
-
-
     rack.fuseDetails.splice(
-      startIndex
+      Math.max(
+        0,
+        rack.fuseDetails.length -
+        columns
+      ),
+      columns
     );
 
 
@@ -384,9 +502,9 @@
   }
 
 
-  /* =====================================================
-     REMOVE FUSE COLUMN
-  ===================================================== */
+  /* =======================================================
+     FUSE REMOVE COLUMN
+  ======================================================= */
 
   function removeFuseColumn(
     rack,
@@ -402,16 +520,14 @@
     }
 
 
-    const columns =
-      getFuseColumns(rack);
-
-
-    const rows =
-      getFuseRows(rack);
+    const oldColumns =
+      getFuseColumns(
+        rack
+      );
 
 
     if (
-      columns <= 1
+      oldColumns <= 1
     ) {
 
       alert(
@@ -424,8 +540,8 @@
 
 
     if (
-      !confirmAction(
-        "Remove the last Fuse Column? Fuse details in that column will also be removed."
+      !confirm(
+        `Remove Fuse Column ${oldColumns}?`
       )
     ) {
 
@@ -434,50 +550,56 @@
     }
 
 
+    const rows =
+      getFuseRows(
+        rack
+      );
+
+
     const source =
-      [...rack.fuseDetails];
+      [
+        ...rack.fuseDetails
+      ];
 
 
     const rebuilt =
       [];
 
 
+    const newColumns =
+      oldColumns - 1;
+
+
     for (
       let rowIndex = 0;
       rowIndex < rows;
-      rowIndex += 1
+      rowIndex++
     ) {
+
+      const start =
+        rowIndex *
+        oldColumns;
+
 
       const rowItems =
         source.slice(
-
-          rowIndex * columns,
-
-          rowIndex * columns +
-          columns
-
+          start,
+          start + oldColumns
         );
 
 
-      /*
-        Remove last column item.
-      */
-
-      rowItems.splice(
-        columns - 1,
-        1
-      );
-
-
       rebuilt.push(
-        ...rowItems
+        ...rowItems.slice(
+          0,
+          newColumns
+        )
       );
 
     }
 
 
     rack.fuseGridColumns =
-      columns - 1;
+      newColumns;
 
 
     rack.fuseDetails =
@@ -489,622 +611,375 @@
   }
 
 
-  /* =====================================================
-     TERMINAL HELPERS
-  ===================================================== */
+  /* =======================================================
+     FUSE CONTROLS
+  ======================================================= */
 
-  function getTerminalColumns(rack) {
-
-    const rows =
-      Array.isArray(
-        rack.rows
-      )
-
-        ? rack.rows
-
-        : [];
-
-
-    const highest =
-      rows.reduce(
-
-        function (
-          current,
-          row
-        ) {
-
-          const count =
-            Array.isArray(
-              row.terminals
-            )
-
-              ? row.terminals.length
-
-              : 0;
-
-
-          return Math.max(
-            current,
-            count
-          );
-
-        },
-
-        0
-
-      );
-
-
-    return highest || 12;
-
-  }
-
-
-  /* =====================================================
-     ADD TERMINAL ROW
-  ===================================================== */
-
-  function addTerminalRow(
+  function createFuseControls(
     rack,
     rerender
   ) {
 
-    if (
-      !requireEdit()
-    ) {
-
-      return;
-
-    }
-
-
-    rack.rows =
-      Array.isArray(
-        rack.rows
-      )
-
-        ? rack.rows
-
-        : [];
-
-
-    const columns =
-      getTerminalColumns(rack);
-
-
-    const label =
-      typeof getRowLabel ===
-      "function"
-
-        ? getRowLabel(
-            rack.rows.length
-          )
-
-        : String.fromCharCode(
-            65 +
-            rack.rows.length
-          );
-
-
-    if (
-      typeof createRow ===
-      "function"
-    ) {
-
-      rack.rows.push(
-
-        createRow(
-          label,
-          columns
-        )
-
-      );
-
-    }
-
-
-    rerender();
-
-  }
-
-
-  /* =====================================================
-     ADD TERMINAL COLUMN
-  ===================================================== */
-
-  function addTerminalColumn(
-    rack,
-    rerender
-  ) {
-
-    if (
-      !requireEdit()
-    ) {
-
-      return;
-
-    }
-
-
-    rack.rows =
-      Array.isArray(
-        rack.rows
-      )
-
-        ? rack.rows
-
-        : [];
-
-
-    if (
-      rack.rows.length === 0
-    ) {
-
-      addTerminalRow(
-        rack,
-        rerender
-      );
-
-      return;
-
-    }
-
-
-    rack.rows.forEach(
-      function (row) {
-
-        row.terminals =
-          Array.isArray(
-            row.terminals
-          )
-
-            ? row.terminals
-
-            : [];
-
-
-        if (
-          typeof createTerminal ===
-          "function"
-        ) {
-
-          row.terminals.push(
-
-            createTerminal(
-              row.terminals.length + 1
-            )
-
-          );
-
-        }
-
-
-        if (
-          typeof renumberTerminals ===
-          "function"
-        ) {
-
-          renumberTerminals(
-            row
-          );
-
-        }
-
-      }
-    );
-
-
-    rerender();
-
-  }
-
-
-  /* =====================================================
-     REMOVE TERMINAL ROW
-  ===================================================== */
-
-  function removeTerminalRow(
-    rack,
-    rerender
-  ) {
-
-    if (
-      !requireEdit()
-    ) {
-
-      return;
-
-    }
-
-
-    rack.rows =
-      Array.isArray(
-        rack.rows
-      )
-
-        ? rack.rows
-
-        : [];
-
-
-    if (
-      rack.rows.length <= 1
-    ) {
-
-      alert(
-        "At least one terminal row must remain."
-      );
-
-      return;
-
-    }
-
-
-    const lastRow =
-      rack.rows[
-        rack.rows.length - 1
-      ];
-
-
-    const label =
-      lastRow?.label ||
-      "";
-
-
-    if (
-      !confirmAction(
-        `Remove Terminal Row ${label}? All terminals in this row will also be removed.`
-      )
-    ) {
-
-      return;
-
-    }
-
-
-    rack.rows.pop();
-
-
-    if (
-      typeof relabelRows ===
-      "function"
-    ) {
-
-      relabelRows(
-        rack
-      );
-
-    }
-
-
-    rerender();
-
-  }
-
-
-  /* =====================================================
-     REMOVE TERMINAL COLUMN
-  ===================================================== */
-
-  function removeTerminalColumn(
-    rack,
-    rerender
-  ) {
-
-    if (
-      !requireEdit()
-    ) {
-
-      return;
-
-    }
-
-
-    rack.rows =
-      Array.isArray(
-        rack.rows
-      )
-
-        ? rack.rows
-
-        : [];
-
-
-    const columns =
-      getTerminalColumns(rack);
-
-
-    if (
-      columns <= 1
-    ) {
-
-      alert(
-        "At least one terminal column must remain."
-      );
-
-      return;
-
-    }
-
-
-    if (
-      !confirmAction(
-        `Remove Terminal Column ${columns}? This terminal will be removed from every row.`
-      )
-    ) {
-
-      return;
-
-    }
-
-
-    rack.rows.forEach(
-      function (row) {
-
-        row.terminals =
-          Array.isArray(
-            row.terminals
-          )
-
-            ? row.terminals
-
-            : [];
-
-
-        if (
-          row.terminals.length > 0
-        ) {
-
-          row.terminals.pop();
-
-        }
-
-
-        if (
-          typeof renumberTerminals ===
-          "function"
-        ) {
-
-          renumberTerminals(
-            row
-          );
-
-        }
-
-      }
-    );
-
-
-    rerender();
-
-  }
-
-
-  /* =====================================================
-     BUTTON
-  ===================================================== */
-
-  function makeButton(
-    label,
-    type,
-    onClick
-  ) {
-
-    const button =
-      document.createElement(
-        "button"
-      );
-
-
-    button.type =
-      "button";
-
-
-    button.className =
-      "systematic-grid-btn";
-
-
-    if (
-      type ===
-      "remove"
-    ) {
-
-      button.classList.add(
-        "systematic-remove-btn"
-      );
-
-    }
-
-
-    button.textContent =
-      label;
-
-
-    button.hidden =
-      !canEdit();
-
-
-    button.addEventListener(
-      "click",
-      function (event) {
-
-        event.preventDefault();
-
-        event.stopPropagation();
-
-        onClick();
-
-      }
-    );
-
-
-    return button;
-
-  }
-
-
-  /* =====================================================
-     CONTROL GROUP
-  ===================================================== */
-
-  function makeControls(
-    kind,
-    rack,
-    rerender
-  ) {
-
-    const box =
+    const actions =
       document.createElement(
         "div"
       );
 
 
-    box.className =
+    actions.className =
       "systematic-grid-actions";
 
 
-    box.dataset.gridKind =
-      kind;
+    actions.dataset.gridKind =
+      "fuse";
 
 
-    if (
-      kind ===
-      "fuse"
-    ) {
+    actions.append(
 
-      box.append(
+      createGridButton(
+        "+ Add Row",
+        function () {
 
-        makeButton(
-          "+ Add Row",
-          "add",
-          function () {
+          addFuseRow(
+            rack,
+            rerender
+          );
 
-            addFuseRow(
-              rack,
-              rerender
-            );
+        }
+      ),
 
-          }
-        ),
+      createGridButton(
+        "+ Add Column",
+        function () {
 
+          addFuseColumn(
+            rack,
+            rerender
+          );
 
-        makeButton(
-          "+ Add Column",
-          "add",
-          function () {
+        }
+      ),
 
-            addFuseColumn(
-              rack,
-              rerender
-            );
+      createGridButton(
+        "− Remove Row",
+        function () {
 
-          }
-        ),
+          removeFuseRow(
+            rack,
+            rerender
+          );
 
+        },
+        true
+      ),
 
-        makeButton(
-          "− Remove Row",
-          "remove",
-          function () {
+      createGridButton(
+        "− Remove Column",
+        function () {
 
-            removeFuseRow(
-              rack,
-              rerender
-            );
+          removeFuseColumn(
+            rack,
+            rerender
+          );
 
-          }
-        ),
+        },
+        true
+      )
 
-
-        makeButton(
-          "− Remove Column",
-          "remove",
-          function () {
-
-            removeFuseColumn(
-              rack,
-              rerender
-            );
-
-          }
-        )
-
-      );
-
-    }
-
-    else {
-
-      box.append(
-
-        makeButton(
-          "+ Add Row",
-          "add",
-          function () {
-
-            addTerminalRow(
-              rack,
-              rerender
-            );
-
-          }
-        ),
+    );
 
 
-        makeButton(
-          "+ Add Column",
-          "add",
-          function () {
-
-            addTerminalColumn(
-              rack,
-              rerender
-            );
-
-          }
-        ),
-
-
-        makeButton(
-          "− Remove Row",
-          "remove",
-          function () {
-
-            removeTerminalRow(
-              rack,
-              rerender
-            );
-
-          }
-        ),
-
-
-        makeButton(
-          "− Remove Column",
-          "remove",
-          function () {
-
-            removeTerminalColumn(
-              rack,
-              rerender
-            );
-
-          }
-        )
-
-      );
-
-    }
-
-
-    return box;
+    return actions;
 
   }
 
 
-  /* =====================================================
-     ENHANCE FUSE
-  ===================================================== */
+  /* =======================================================
+     STATION TERMINAL CONTROLS
+
+     Add Row / Add Column are intercepted by station.js
+     capture handler and performed incrementally.
+  ======================================================= */
+
+  function createStationTerminalControls(
+    rack,
+    card
+  ) {
+
+    const actions =
+      document.createElement(
+        "div"
+      );
+
+
+    actions.className =
+      "systematic-grid-actions";
+
+
+    actions.dataset.gridKind =
+      "terminal";
+
+
+    /*
+       station.js handles these two in capture phase.
+    */
+
+    actions.appendChild(
+      createGridButton(
+        "+ Add Row"
+      )
+    );
+
+
+    actions.appendChild(
+      createGridButton(
+        "+ Add Column"
+      )
+    );
+
+
+    /* -----------------------------------------------------
+       REMOVE LAST ROW
+    ----------------------------------------------------- */
+
+    actions.appendChild(
+      createGridButton(
+        "− Remove Row",
+        function () {
+
+          if (
+            !requireEdit()
+          ) {
+
+            return;
+
+          }
+
+
+          if (
+            !Array.isArray(
+              rack.rows
+            ) ||
+            rack.rows.length <= 1
+          ) {
+
+            alert(
+              "At least one terminal row must remain."
+            );
+
+            return;
+
+          }
+
+
+          const lastRow =
+            rack.rows[
+              rack.rows.length - 1
+            ];
+
+
+          if (
+            !confirm(
+              `Remove Row ${lastRow.label}?`
+            )
+          ) {
+
+            return;
+
+          }
+
+
+          rack.rows.pop();
+
+
+          if (
+            typeof relabelRows ===
+            "function"
+          ) {
+
+            relabelRows(
+              rack
+            );
+
+          }
+
+
+          const rowBlocks =
+            card.querySelectorAll(
+              ".dynamic-rack-row"
+            );
+
+
+          rowBlocks[
+            rowBlocks.length - 1
+          ]?.remove();
+
+
+          applyAccessMode();
+
+        },
+        true
+      )
+    );
+
+
+    /* -----------------------------------------------------
+       REMOVE LAST COLUMN
+    ----------------------------------------------------- */
+
+    actions.appendChild(
+      createGridButton(
+        "− Remove Column",
+        function () {
+
+          if (
+            !requireEdit()
+          ) {
+
+            return;
+
+          }
+
+
+          if (
+            !Array.isArray(
+              rack.rows
+            ) ||
+            rack.rows.length === 0
+          ) {
+
+            return;
+
+          }
+
+
+          const columns =
+            Math.max(
+              ...rack.rows.map(
+                function (row) {
+
+                  return Array.isArray(
+                    row.terminals
+                  )
+                    ? row.terminals.length
+                    : 0;
+
+                }
+              )
+            );
+
+
+          if (
+            columns <= 1
+          ) {
+
+            alert(
+              "At least one terminal column must remain."
+            );
+
+            return;
+
+          }
+
+
+          if (
+            !confirm(
+              `Remove Column ${columns} from all rows?`
+            )
+          ) {
+
+            return;
+
+          }
+
+
+          const rowBlocks =
+            card.querySelectorAll(
+              ".dynamic-rack-row"
+            );
+
+
+          rack.rows.forEach(
+            function (
+              row,
+              rowIndex
+            ) {
+
+              if (
+                Array.isArray(
+                  row.terminals
+                ) &&
+                row.terminals.length >
+                  0
+              ) {
+
+                row.terminals.pop();
+
+              }
+
+
+              if (
+                typeof renumberTerminals ===
+                "function"
+              ) {
+
+                renumberTerminals(
+                  row
+                );
+
+              }
+
+
+              const strip =
+                rowBlocks[
+                  rowIndex
+                ]
+                  ?.querySelector(
+                    ".terminal-strip"
+                  );
+
+
+              if (
+                strip
+              ) {
+
+                /*
+                   Each terminal uses:
+                   terminal button
+                   remove button
+                */
+
+                strip
+                  .lastElementChild
+                  ?.remove();
+
+
+                strip
+                  .lastElementChild
+                  ?.remove();
+
+              }
+
+            }
+          );
+
+
+          applyAccessMode();
+
+        },
+        true
+      )
+    );
+
+
+    return actions;
+
+  }
+
+
+  /* =======================================================
+     ENHANCE FUSE SECTION
+  ======================================================= */
 
   function enhanceFuseSection(
     section,
@@ -1138,7 +1013,7 @@
 
 
     /*
-      Hide original '+ Add Fuse Point'.
+       Hide legacy single Add Fuse button.
     */
 
     header
@@ -1162,13 +1037,10 @@
     ) {
 
       header.appendChild(
-
-        makeControls(
-          "fuse",
+        createFuseControls(
           rack,
           rerender
         )
-
       );
 
     }
@@ -1185,7 +1057,9 @@
     ) {
 
       const columns =
-        getFuseColumns(rack);
+        getFuseColumns(
+          rack
+        );
 
 
       strip.classList.add(
@@ -1227,320 +1101,40 @@
 
 
     status.textContent =
-      `Rows: ${getFuseRows(rack)} • Columns: ${getFuseColumns(rack)}`;
+      `Rows: ${getFuseRows(
+        rack
+      )}  •  Columns: ${getFuseColumns(
+        rack
+      )}`;
 
   }
 
 
-  /* =====================================================
-     ENHANCE TERMINALS
-  ===================================================== */
+  /* =======================================================
+     STATION RACK ENHANCEMENT
+  ======================================================= */
 
-  function enhanceTerminalSection(
-    container,
-    rack,
-    rerender,
-    locationMode
-  ) {
+  function enhanceStationRacks() {
 
-    if (
-      !container ||
-      !rack
-    ) {
+    let racks;
+
+
+    try {
+
+      racks =
+        stationCtrRacks;
+
+    }
+    catch (error) {
 
       return;
 
     }
 
 
-    /*
-      Clean old per-row controls:
-      Add Conductor / Remove Row.
-    */
-
-    container
-      .querySelectorAll(
-        ".row-header-actions"
-      )
-      .forEach(
-        function (actions) {
-
-          actions.style.display =
-            "none";
-
-        }
-      );
-
-
-    /*
-      Clean red X beside every terminal.
-      Column controls now manage columns systematically.
-    */
-
-    container
-      .querySelectorAll(
-        ".remove-conductor-btn"
-      )
-      .forEach(
-        function (button) {
-
-          button.style.display =
-            "none";
-
-        }
-      );
-
-
     if (
-      locationMode
-    ) {
-
-      /*
-        Hide location-rack original Add Row.
-      */
-
-      const oldAddRow =
-        container.querySelector(
-          ".location-rack-header .add-conductor-btn"
-        );
-
-
-      if (
-        oldAddRow
-      ) {
-
-        oldAddRow.style.display =
-          "none";
-
-      }
-
-
-      if (
-        !container.querySelector(
-          ".systematic-terminal-toolbar"
-        )
-      ) {
-
-        const toolbar =
-          document.createElement(
-            "div"
-          );
-
-
-        toolbar.className =
-          "systematic-terminal-toolbar";
-
-
-        const title =
-          document.createElement(
-            "div"
-          );
-
-
-        title.className =
-          "systematic-toolbar-title";
-
-
-        title.innerHTML = `
-
-          <span>
-            CTR TERMINALS
-          </span>
-
-          <strong>
-            Row & Column Structure
-          </strong>
-
-        `;
-
-
-        toolbar.append(
-
-          title,
-
-          makeControls(
-            "terminal",
-            rack,
-            rerender
-          )
-
-        );
-
-
-        const header =
-          container.querySelector(
-            ".location-rack-header"
-          );
-
-
-        header
-          ?.insertAdjacentElement(
-            "afterend",
-            toolbar
-          );
-
-      }
-
-    }
-
-    else {
-
-      const toolbar =
-        container.querySelector(
-          ".rack-builder-toolbar"
-        );
-
-
-      if (
-        !toolbar
-      ) {
-
-        return;
-
-      }
-
-
-      /*
-        Hide existing Add Row button.
-      */
-
-      toolbar
-        .querySelectorAll(
-          ":scope > .builder-action-btn"
-        )
-        .forEach(
-          function (button) {
-
-            button.style.display =
-              "none";
-
-          }
-        );
-
-
-      if (
-        !toolbar.querySelector(
-          '[data-grid-kind="terminal"]'
-        )
-      ) {
-
-        toolbar.appendChild(
-
-          makeControls(
-            "terminal",
-            rack,
-            rerender
-          )
-
-        );
-
-      }
-
-    }
-
-  }
-
-
-  /* =====================================================
-     LOCATION RACK DATA
-  ===================================================== */
-
-  function getLocations() {
-
-  const result = [];
-
-
-  if (
-    typeof connectedEnds === "undefined" ||
-    !Array.isArray(connectedEnds)
-  ) {
-
-    return result;
-
-  }
-
-
-  connectedEnds.forEach(
-    function (end) {
-
-      const locations =
-        Array.isArray(end.locations)
-          ? end.locations
-          : [];
-
-
-      locations.forEach(
-        function (location) {
-
-          result.push(
-            location
-          );
-
-        }
-      );
-
-    }
-  );
-
-
-  return result;
-
-}
-
-
-  /* =====================================================
-     ROW LABELS
-  ===================================================== */
-
-  function normalizeRowLabels() {
-
-    document
-      .querySelectorAll(
-
-        ".dynamic-row-header h4, .location-row-block .dynamic-row-header > strong"
-
-      )
-      .forEach(
-        function (element) {
-
-          const text =
-            element.textContent
-              .trim();
-
-
-          const match =
-            text.match(
-              /^ROW\s*([A-Z]+)$/i
-            );
-
-
-          if (
-            match
-          ) {
-
-            element.textContent =
-              match[1]
-                .toUpperCase();
-
-          }
-
-        }
-      );
-
-  }
-
-
-  /* =====================================================
-     STATION RACKS
-  ===================================================== */
-
-  function enhanceStationRacks() {
-
-    if (
-      typeof stationCtrRacks ===
-      "undefined" ||
       !Array.isArray(
-        stationCtrRacks
+        racks
       )
     ) {
 
@@ -1551,9 +1145,7 @@
 
     const cards =
       document.querySelectorAll(
-
         "#stationCtrRacksContainer .ctr-rack-card"
-
       );
 
 
@@ -1564,9 +1156,7 @@
       ) {
 
         const rack =
-          stationCtrRacks[
-            index
-          ];
+          racks[index];
 
 
         if (
@@ -1588,29 +1178,80 @@
 
 
         enhanceFuseSection(
-
           card.querySelector(
             ".rack-fuse-section"
           ),
-
           rack,
-
           rerender
-
         );
 
 
-        enhanceTerminalSection(
+        const toolbar =
+          card.querySelector(
+            ".rack-builder-toolbar"
+          );
 
-          card,
 
-          rack,
+        if (
+          !toolbar
+        ) {
 
-          rerender,
+          return;
 
-          false
+        }
 
-        );
+
+        /*
+           Hide legacy Add Row.
+        */
+
+        toolbar
+          .querySelectorAll(
+            ":scope > .builder-action-btn"
+          )
+          .forEach(
+            function (button) {
+
+              button.style.display =
+                "none";
+
+            }
+          );
+
+
+        if (
+          !toolbar.querySelector(
+            '[data-grid-kind="terminal"]'
+          )
+        ) {
+
+          toolbar.appendChild(
+            createStationTerminalControls(
+              rack,
+              card
+            )
+          );
+
+        }
+
+
+        /*
+           Individual + Add Conductor button is hidden
+           because systematic row/column control is used.
+        */
+
+        card
+          .querySelectorAll(
+            ".row-header-actions .add-conductor-btn"
+          )
+          .forEach(
+            function (button) {
+
+              button.style.display =
+                "none";
+
+            }
+          );
 
       }
     );
@@ -1618,119 +1259,147 @@
   }
 
 
-  /* =====================================================
-     LOCATION RACKS
-  ===================================================== */
+  /* =======================================================
+     LOCATION FUSE ENHANCEMENT
 
-  function enhanceLocationRacks() {
+     Location terminal controls already come directly
+     from station.js.
+  ======================================================= */
 
-  /*
-     Function name compatibility ke liye same rakha hai.
+  function getLocations() {
 
-     Final Location Box structure:
-
-       Location Box
-       ├── Fuse Details
-       └── Rows / Columns / Terminals
-
-     Location Box ke andar koi K1 / K2 / K3 rack nahi hai.
-  */
-
-  const locations =
-    getLocations();
+    const locations =
+      [];
 
 
-  const wrappers =
-    document.querySelectorAll(
-      "#connectedEndsContainer .location-racks-wrapper"
+    let ends;
+
+
+    try {
+
+      ends =
+        connectedEnds;
+
+    }
+    catch (error) {
+
+      return locations;
+
+    }
+
+
+    if (
+      !Array.isArray(
+        ends
+      )
+    ) {
+
+      return locations;
+
+    }
+
+
+    ends.forEach(
+      function (end) {
+
+        (
+          end.locations ||
+          []
+        )
+          .forEach(
+            function (location) {
+
+              locations.push(
+                location
+              );
+
+            }
+          );
+
+      }
     );
 
 
-  wrappers.forEach(
-    function (
-      wrapper,
-      index
-    ) {
+    return locations;
 
-      const location =
-        locations[index];
+  }
 
 
-      if (!location) {
+  function enhanceLocations() {
 
-        return;
-
-      }
-
-
-      const rerender =
-        typeof renderConnectedEnds === "function"
-
-          ? renderConnectedEnds
-
-          : function () {};
+    const locations =
+      getLocations();
 
 
-      /* =================================================
-         LOCATION BOX FUSE
-
-         Same Fuse controls as Station CTR:
-         + Add Row
-         + Add Column
-         individual × Remove Fuse
-      ================================================= */
-
-      const fuseSection =
-        wrapper.querySelector(
-          ".location-fuse-box"
-        );
-
-
-      enhanceFuseSection(
-        fuseSection,
-        location,
-        rerender
+    const cards =
+      document.querySelectorAll(
+        "#connectedEndsContainer .dynamic-location-card"
       );
 
 
-      /* =================================================
-         LOCATION TERMINALS
+    cards.forEach(
+      function (
+        card,
+        index
+      ) {
 
-         Top toolbar is already created by station.js.
+        const location =
+          locations[index];
 
-         Individual + Add Conductor is hidden because
-         column addition is controlled systematically.
-         Remove Row remains available.
-      ================================================= */
 
-      wrapper
-        .querySelectorAll(
-          ".row-header-actions .add-conductor-btn"
-        )
-        .forEach(
-          function (button) {
+        if (
+          !location
+        ) {
 
-            button.style.display =
-              "none";
+          return;
 
-          }
-        );
+        }
 
-    }
-  );
 
-}
-  /* =====================================================
-     CSS
-  ===================================================== */
+        const fuseSection =
+          card.querySelector(
+            ".location-fuse-box"
+          );
+
+
+        if (
+          fuseSection
+        ) {
+
+          enhanceFuseSection(
+            fuseSection,
+            location,
+            typeof renderConnectedEnds ===
+              "function"
+
+              ? renderConnectedEnds
+
+              : function () {}
+          );
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* =======================================================
+     STYLES
+  ======================================================= */
 
   function injectStyles() {
 
-    document
-      .getElementById(
-        "systematicGridControlsStyle"
+    if (
+      document.getElementById(
+        "lightGridControlsStyle"
       )
-      ?.remove();
+    ) {
+
+      return;
+
+    }
 
 
     const style =
@@ -1740,401 +1409,103 @@
 
 
     style.id =
-      "systematicGridControlsStyle";
+      "lightGridControlsStyle";
 
 
     style.textContent = `
 
-      /* ===============================================
-         CONTROL GROUP
-      =============================================== */
-
       .systematic-grid-actions {
-
-        display:
-          flex;
-
-        align-items:
-          center;
-
-        justify-content:
-          flex-end;
-
-        gap:
-          7px;
-
-        flex-wrap:
-          wrap;
-
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 7px;
+        flex-wrap: wrap;
       }
-
-
-      /* ===============================================
-         BUTTON
-      =============================================== */
 
       .systematic-grid-btn {
-
-        min-width:
-          105px;
-
-        min-height:
-          32px;
-
-        padding:
-          6px
-          10px;
-
-        border:
-          1px solid #5d6975;
-
-        border-radius:
-          2px;
-
-        background:
-          #ffffff;
-
-        color:
-          #1e344b;
-
-        font-size:
-          10px;
-
-        font-weight:
-          700;
-
-        cursor:
-          pointer;
-
-        white-space:
-          nowrap;
-
+        min-width: 105px;
+        min-height: 32px;
+        padding: 6px 10px;
+        border: 1px solid #5d6975;
+        border-radius: 2px;
+        background: #ffffff;
+        color: #1e344b;
+        font-size: 10px;
+        font-weight: 700;
+        cursor: pointer;
       }
-
 
       .systematic-grid-btn:hover {
-
-        background:
-          #edf1f4;
-
+        background: #eef2f5;
       }
-
-
-      /* ===============================================
-         REMOVE BUTTON
-      =============================================== */
 
       .systematic-remove-btn {
-
-        border-color:
-          #bd3c3c;
-
-        color:
-          #a62020;
-
+        border-color: #bd3c3c;
+        color: #a62020;
       }
-
 
       .systematic-remove-btn:hover {
-
-        background:
-          #fff3f3;
-
+        background: #fff3f3;
       }
 
-
-      /* ===============================================
-         FUSE TOOLBAR POSITION
-      =============================================== */
+      .fuse-builder-header {
+        position: relative;
+      }
 
       .fuse-builder-header
       .systematic-grid-actions {
-
-        position:
-          absolute;
-
-        top:
-          0;
-
-        right:
-          0;
-
+        position: absolute;
+        top: 0;
+        right: 0;
       }
 
+      .rack-builder-toolbar {
+        position: relative;
+      }
 
-      /* ===============================================
-         FUSE GRID
-      =============================================== */
+      .rack-builder-toolbar >
+      .systematic-grid-actions {
+        position: absolute;
+        top: 13px;
+        right: 0;
+      }
 
       .systematic-fuse-grid {
-
-        display:
-          grid !important;
-
-        align-items:
-          start !important;
-
-        justify-content:
-          start !important;
-
-        gap:
-          14px
-          8px !important;
-
-        width:
-          max-content !important;
-
-        min-width:
-          100% !important;
-
+        display: grid !important;
+        align-items: start !important;
+        justify-content: start !important;
+        gap: 12px 8px !important;
+        width: max-content !important;
+        min-width: 100% !important;
       }
-
 
       .fuse-grid-status {
-
-        margin-top:
-          8px;
-
-        padding-right:
-          4px;
-
-        color:
-          #657687;
-
-        font-size:
-          9px;
-
-        font-weight:
-          500;
-
-        text-align:
-          right;
-
+        margin-top: 8px;
+        color: #667788;
+        font-size: 9px;
+        font-weight: 500;
+        text-align: right;
       }
-
-
-      /* ===============================================
-         STATION TERMINAL TOOLBAR
-      =============================================== */
-
-      .rack-builder-toolbar
-      > .systematic-grid-actions {
-
-        position:
-          absolute;
-
-        top:
-          14px;
-
-        right:
-          0;
-
-      }
-
-
-      /* ===============================================
-         LOCATION TERMINAL TOOLBAR
-      =============================================== */
-
-      .systematic-terminal-toolbar {
-
-        display:
-          flex;
-
-        align-items:
-          center;
-
-        justify-content:
-          space-between;
-
-        gap:
-          16px;
-
-        min-height:
-          62px;
-
-        padding:
-          10px
-          12px;
-
-        border-bottom:
-          1px solid #8f969d;
-
-        background:
-          #ffffff;
-
-      }
-
-
-      .systematic-toolbar-title span {
-
-        display:
-          block;
-
-        color:
-          #50667b;
-
-        font-size:
-          9px;
-
-        font-weight:
-          500;
-
-      }
-
-
-      .systematic-toolbar-title strong {
-
-        display:
-          block;
-
-        margin-top:
-          2px;
-
-        color:
-          #142e49;
-
-        font-size:
-          13px;
-
-        font-weight:
-          700;
-
-      }
-
-
-      /* ===============================================
-         REMOVE OLD RANDOM DRAWING BUTTONS
-      =============================================== */
-
-      .row-header-actions,
-
-      .remove-conductor-btn {
-
-        display:
-          none !important;
-
-      }
-
-
-      /* ===============================================
-         VIEW MODE
-      =============================================== */
 
       body[data-station-edit-mode="view"]
       .systematic-grid-actions {
-
-        display:
-          none !important;
-
+        display: none !important;
       }
 
-
-      /* ===============================================
-         MOBILE
-      =============================================== */
-
-      @media
-      (max-width: 900px) {
+      @media (max-width: 760px) {
 
         .fuse-builder-header {
-
-          padding-bottom:
-            82px !important;
-
+          padding-bottom: 48px;
         }
-
 
         .fuse-builder-header
+        .systematic-grid-actions,
+
+        .rack-builder-toolbar >
         .systematic-grid-actions {
 
-          top:
-            auto;
-
-          right:
-            0;
-
-          bottom:
-            5px;
-
-          max-width:
-            100%;
-
-        }
-
-
-        .rack-builder-toolbar {
-
-          padding-bottom:
-            82px !important;
-
-        }
-
-
-        .rack-builder-toolbar
-        > .systematic-grid-actions {
-
-          top:
-            auto;
-
-          right:
-            0;
-
-          bottom:
-            6px;
-
-        }
-
-      }
-
-
-      @media
-      (max-width: 600px) {
-
-        .systematic-grid-actions {
-
-          width:
-            100%;
-
-          display:
-            grid;
-
-          grid-template-columns:
-            repeat(
-              2,
-              minmax(
-                0,
-                1fr
-              )
-            );
-
-          gap:
-            6px;
-
-        }
-
-
-        .systematic-grid-btn {
-
-          width:
-            100%;
-
-          min-width:
-            0;
-
-          font-size:
-            9px;
-
-        }
-
-
-        .systematic-terminal-toolbar {
-
-          align-items:
-            stretch;
-
-          flex-direction:
-            column;
+          position: static;
+          margin-top: 8px;
 
         }
 
@@ -2150,18 +1521,46 @@
   }
 
 
-  /* =====================================================
-     APPLY
-  ===================================================== */
+  /* =======================================================
+     REFRESH SCHEDULER
+  ======================================================= */
 
-  let applying =
-    false;
+  let refreshFrame =
+    null;
 
 
-  function applyAll() {
+  function refresh() {
+
+    refreshFrame =
+      null;
+
+
+    enhanceStationRacks();
+
+    enhanceLocations();
+
+
+    document
+      .querySelectorAll(
+        ".systematic-grid-btn"
+      )
+      .forEach(
+        function (button) {
+
+          button.hidden =
+            !canEdit();
+
+        }
+      );
+
+  }
+
+
+  function scheduleRefresh() {
 
     if (
-      applying
+      refreshFrame !==
+      null
     ) {
 
       return;
@@ -2169,88 +1568,132 @@
     }
 
 
-    applying =
-      true;
+    refreshFrame =
+      requestAnimationFrame(
+        refresh
+      );
+
+  }
 
 
-    try {
+  /* =======================================================
+     SMALL OBSERVERS ONLY
 
-      normalizeRowLabels();
+     IMPORTANT:
+     We observe only top-level rack/end replacement.
+     We DO NOT observe the whole document subtree.
+  ======================================================= */
 
-      enhanceStationRacks();
+  function startObservers() {
 
-      enhanceLocationRacks();
+    const stationContainer =
+      document.getElementById(
+        "stationCtrRacksContainer"
+      );
 
 
-      document
-        .querySelectorAll(
-          ".systematic-grid-btn"
-        )
-        .forEach(
-          function (button) {
+    const endsContainer =
+      document.getElementById(
+        "connectedEndsContainer"
+      );
 
-            button.hidden =
-              !canEdit();
 
-          }
+    if (
+      stationContainer
+    ) {
+
+      const stationObserver =
+        new MutationObserver(
+          scheduleRefresh
         );
+
+
+      stationObserver.observe(
+        stationContainer,
+        {
+          childList:
+            true,
+
+          subtree:
+            false
+        }
+      );
 
     }
 
-    finally {
 
-      applying =
-        false;
+    if (
+      endsContainer
+    ) {
+
+      const endsObserver =
+        new MutationObserver(
+          scheduleRefresh
+        );
+
+
+      endsObserver.observe(
+        endsContainer,
+        {
+          childList:
+            true,
+
+          subtree:
+            false
+        }
+      );
 
     }
 
   }
 
 
-  /* =====================================================
+  /* =======================================================
+     PUBLIC REFRESH
+  ======================================================= */
+
+  window.ctrGridControls = {
+
+    refresh:
+      scheduleRefresh
+
+  };
+
+
+  /* =======================================================
      START
-  ===================================================== */
+  ======================================================= */
 
   function start() {
 
     injectStyles();
 
-    applyAll();
+    startObservers();
 
 
-    const observer =
-      new MutationObserver(
-        function () {
+    /*
+       station.js may still be loading data.
+       Run once now and once after next paint.
+    */
 
-          requestAnimationFrame(
-            applyAll
-          );
-
-        }
-      );
+    scheduleRefresh();
 
 
-    observer.observe(
+    requestAnimationFrame(
+      function () {
 
-      document.body,
+        scheduleRefresh();
 
-      {
-        childList:
-          true,
-
-        subtree:
-          true
       }
-
-    );
-
-
-    window.addEventListener(
-      "ctr-access-ready",
-      applyAll
     );
 
   }
+
+
+  window.addEventListener(
+    "ctr-access-ready",
+    scheduleRefresh
+  );
 
 
   if (
@@ -2260,11 +1703,14 @@
 
     document.addEventListener(
       "DOMContentLoaded",
-      start
+      start,
+      {
+        once:
+          true
+      }
     );
 
   }
-
   else {
 
     start();

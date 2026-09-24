@@ -1,24 +1,21 @@
 /* =========================================================
-   CTR STATION DRAWING BUILDER
-   SUPABASE DATABASE VERSION
+   IRWMM - STATION CTR BUILDER
+   COMPLETE PERFORMANCE + LAZY LOAD VERSION
 
-   FEATURES
+   IMPORTANT
    ---------------------------------------------------------
-   - Station CTR Racks
-   - Fuse Details
-   - Rows / Conductors / Terminals
-   - Connected Ends
-   - Location Boxes
-   - Location Box Fuse Details + Direct Rows
-   - Terminal Editor
-   - Supabase Draft Save / Load / Reset
-   - Station Status Sync
-   - PDF Style Fuse Display
+   - Station racks are lazy loaded.
+   - Connected Ends are lazy loaded.
+   - Location Boxes are lazy loaded.
+   - Large terminal drawings are NOT created until opened.
+   - Draft remains stored in Supabase.
+   - Existing CTR data structure is preserved.
+   - Legacy Location K-rack data is migrated automatically.
 ========================================================= */
 
 
 /* =========================================================
-   BASIC DATA
+   BASIC HELPERS
 ========================================================= */
 
 function createId() {
@@ -31,7 +28,6 @@ function createId() {
     return window.crypto.randomUUID();
 
   }
-
 
   return (
     Date.now().toString() +
@@ -55,6 +51,49 @@ function escapeHtml(value) {
 
 }
 
+
+function getRowLabel(index) {
+
+  let number =
+    index + 1;
+
+  let result =
+    "";
+
+
+  while (
+    number > 0
+  ) {
+
+    number--;
+
+
+    result =
+      String.fromCharCode(
+        65 +
+        (
+          number % 26
+        )
+      ) +
+      result;
+
+
+    number =
+      Math.floor(
+        number / 26
+      );
+
+  }
+
+
+  return result;
+
+}
+
+
+/* =========================================================
+   CREATE ENGINEERING DATA
+========================================================= */
 
 function createFusePoint(number) {
 
@@ -110,7 +149,7 @@ function createTerminal(number) {
 
 function createRow(
   label,
-  conductorCount = 12
+  terminalCount = 12
 ) {
 
   const terminals =
@@ -119,7 +158,7 @@ function createRow(
 
   for (
     let i = 1;
-    i <= conductorCount;
+    i <= terminalCount;
     i++
   ) {
 
@@ -177,48 +216,8 @@ function createCtrRack(number) {
 
 
 /* =========================================================
-   HELPERS
+   NUMBER HELPERS
 ========================================================= */
-
-function getRowLabel(index) {
-
-  let number =
-    index + 1;
-
-
-  let label =
-    "";
-
-
-  while (
-    number > 0
-  ) {
-
-    number--;
-
-
-    label =
-      String.fromCharCode(
-        65 +
-        (
-          number % 26
-        )
-      ) +
-      label;
-
-
-    number =
-      Math.floor(
-        number / 26
-      );
-
-  }
-
-
-  return label;
-
-}
-
 
 function getNextRackNumber(racks) {
 
@@ -229,18 +228,13 @@ function getNextRackNumber(racks) {
   racks.forEach(
     function (rack) {
 
-      if (
-        typeof rack.autoNumber ===
-        "number"
-      ) {
-
-        highest =
-          Math.max(
-            highest,
+      highest =
+        Math.max(
+          highest,
+          Number(
             rack.autoNumber
-          );
-
-      }
+          ) || 0
+        );
 
 
       const match =
@@ -359,7 +353,7 @@ function relabelRows(rack) {
 
 
 /* =========================================================
-   MAIN CTR DATA
+   MAIN DATA
 ========================================================= */
 
 const stationCtrRacks = [
@@ -374,16 +368,106 @@ const connectedEnds =
 
 
 /* =========================================================
+   LAZY OPEN STATE
+========================================================= */
+
+const openedStationRacks =
+  new Set();
+
+
+const openedConnectedEnds =
+  new Set();
+
+
+const openedLocationBoxes =
+  new Set();
+
+
+function isRackOpen(rack) {
+
+  return openedStationRacks.has(
+    rack.id
+  );
+
+}
+
+
+function isEndOpen(end) {
+
+  return openedConnectedEnds.has(
+    end.id
+  );
+
+}
+
+
+function isLocationOpen(location) {
+
+  return openedLocationBoxes.has(
+    location.id
+  );
+
+}
+
+
+function getTerminalCount(owner) {
+
+  if (
+    !Array.isArray(
+      owner?.rows
+    )
+  ) {
+
+    return 0;
+
+  }
+
+
+  return owner.rows.reduce(
+    function (
+      total,
+      row
+    ) {
+
+      return (
+        total +
+        (
+          Array.isArray(
+            row.terminals
+          )
+            ? row.terminals.length
+            : 0
+        )
+      );
+
+    },
+    0
+  );
+
+}
+
+
+/* =========================================================
    CURRENT STATION
 ========================================================= */
 
+const stationUrlParams =
+  new URLSearchParams(
+    window.location.search
+  );
+
+
 const currentStationId =
+
   document.body.dataset.stationId ||
+
+  stationUrlParams.get("id") ||
+
   null;
 
 
 /* =========================================================
-   CONNECTED END HELPERS
+   CONNECTED END DATA HELPERS
 ========================================================= */
 
 function getNextEndNumber() {
@@ -418,19 +502,23 @@ function getNextLocationNumber(end) {
     0;
 
 
-  end.locations.forEach(
-    function (location) {
+  (
+    end.locations ||
+    []
+  )
+    .forEach(
+      function (location) {
 
-      highest =
-        Math.max(
-          highest,
-          Number(
-            location.autoNumber
-          ) || 0
-        );
+        highest =
+          Math.max(
+            highest,
+            Number(
+              location.autoNumber
+            ) || 0
+          );
 
-    }
-  );
+      }
+    );
 
 
   return highest + 1;
@@ -481,17 +569,6 @@ function createLocation(end) {
 
     name:
       `Location Box ${number}`,
-
-    /*
-      FINAL LOCATION BOX STRUCTURE
-
-      Location Box
-      ├── Fuse Details
-      └── Direct Rows / Columns / Terminals
-
-      No K1 / K2 / K3 rack layer
-      inside Location Box.
-    */
 
     fuseDetails:
       [],
@@ -631,15 +708,17 @@ const resetCtrDraftButton =
   );
 
 
+const initialDataEntryButton =
+  document.getElementById(
+    "initialDataEntryButton"
+  );
+
+
 const draftSaveStatus =
   document.getElementById(
     "draftSaveStatus"
   );
 
-
-/* =========================================================
-   FUSE EDITOR DOM REFERENCES
-========================================================= */
 
 const fuseEditor =
   document.getElementById(
@@ -684,31 +763,39 @@ const saveFuseEditButton =
 
 
 /* =========================================================
-   STATION ROLE / WORKFLOW ACCESS
+   STATUS DISPLAY
 ========================================================= */
 
-document
-  .querySelectorAll(
-    "[data-station-edit-control]"
-  )
-  .forEach(
-    function (element) {
+function setDraftStatus(message) {
 
-      element.hidden =
-        true;
+  if (
+    draftSaveStatus
+  ) {
 
-    }
-  );
+    draftSaveStatus.textContent =
+      message;
 
+  }
+
+}
+
+
+/* =========================================================
+   ROLE + WORKFLOW ACCESS
+========================================================= */
 
 const EDITABLE_STATION_STATUSES = [
+
   "INITIAL_SETUP",
   "DRAFT"
+
 ];
 
 
 const STATION_DRAFT_EDITOR_ROLES = [
+
   "STATION_USER"
+
 ];
 
 
@@ -721,20 +808,19 @@ let stationWorkflowStatusLoaded =
 
 
 /* =========================================================
-   LOAD CURRENT STATION WORKFLOW STATUS
+   LOAD STATION WORKFLOW STATUS
 ========================================================= */
 
 async function loadCurrentStationWorkflowStatus() {
 
-  if (!currentStationId) {
+  if (
+    !currentStationId
+  ) {
 
     stationWorkflowStatusLoaded =
       true;
 
-    currentStationWorkflowStatus =
-      null;
-
-    return null;
+    return;
 
   }
 
@@ -764,7 +850,9 @@ async function loadCurrentStationWorkflowStatus() {
         .maybeSingle();
 
 
-    if (error) {
+    if (
+      error
+    ) {
 
       throw error;
 
@@ -773,34 +861,24 @@ async function loadCurrentStationWorkflowStatus() {
 
     currentStationWorkflowStatus =
       data?.ctr_status ||
-      null;
+      "INITIAL_SETUP";
 
 
     stationWorkflowStatusLoaded =
       true;
-
-
-    return currentStationWorkflowStatus;
 
   }
 
   catch (error) {
 
     console.error(
-      "Station workflow status load error:",
+      "Station workflow status error:",
       error
     );
 
 
-    currentStationWorkflowStatus =
-      null;
-
-
     stationWorkflowStatusLoaded =
       true;
-
-
-    return null;
 
   }
 
@@ -808,7 +886,7 @@ async function loadCurrentStationWorkflowStatus() {
 
 
 /* =========================================================
-   CHECK DRAFT EDIT PERMISSION
+   CAN EDIT?
 ========================================================= */
 
 function canEditCurrentStationDraft() {
@@ -816,8 +894,7 @@ function canEditCurrentStationDraft() {
   if (
     !currentStationId ||
     !stationWorkflowStatusLoaded ||
-    !window.ctrAccess ||
-    !window.ctrAccess.ready
+    !window.ctrAccess?.ready
   ) {
 
     return false;
@@ -836,25 +913,44 @@ function canEditCurrentStationDraft() {
   }
 
 
-  if (
-    window.ctrAccess.isSystemAdmin()
-  ) {
+  try {
 
-    return true;
+    if (
+      window.ctrAccess
+        .isSystemAdmin?.()
+    ) {
+
+      return true;
+
+    }
+
+
+    return Boolean(
+      window.ctrAccess
+        .hasStationRole?.(
+          currentStationId,
+          STATION_DRAFT_EDITOR_ROLES
+        )
+    );
 
   }
+  catch (error) {
+
+    console.error(
+      "Station edit access error:",
+      error
+    );
 
 
-  return window.ctrAccess.hasStationRole(
-    currentStationId,
-    STATION_DRAFT_EDITOR_ROLES
-  );
+    return false;
+
+  }
 
 }
 
 
 /* =========================================================
-   REQUIRE DRAFT EDIT PERMISSION
+   REQUIRE EDIT
 ========================================================= */
 
 function requireCurrentStationDraftEdit() {
@@ -873,7 +969,6 @@ function requireCurrentStationDraftEdit() {
 
 
   if (
-    stationWorkflowStatusLoaded &&
     currentStationWorkflowStatus &&
     !EDITABLE_STATION_STATUSES.includes(
       currentStationWorkflowStatus
@@ -881,7 +976,7 @@ function requireCurrentStationDraftEdit() {
   ) {
 
     message =
-      "This station is no longer in an editable initial draft state. Approved or workflow-controlled CTR data must be changed through the alteration process.";
+      "This station is no longer in editable draft stage.";
 
   }
 
@@ -897,7 +992,7 @@ function requireCurrentStationDraftEdit() {
 
 
 /* =========================================================
-   APPLY STATIC + DYNAMIC EDIT MODE
+   APPLY ACCESS MODE
 ========================================================= */
 
 function applyStationBuilderAccessMode() {
@@ -926,60 +1021,74 @@ function applyStationBuilderAccessMode() {
     );
 
 
-  const modifyButton =
-    document.getElementById(
-      "modifyCtrButton"
-    );
+  if (
+    initialDataEntryButton
+  ) {
+
+    initialDataEntryButton.disabled =
+      !editable;
 
 
-  if (modifyButton) {
+    initialDataEntryButton.textContent =
 
-    modifyButton.disabled =
-      true;
+      currentStationWorkflowStatus ===
+      "DRAFT"
 
+        ? "Continue Data Entry"
 
-    modifyButton.title =
-      "CTR alteration workflow will be enabled after baseline approval workflow is implemented.";
+        : "Initial Data Entry";
 
   }
 
 
-  const dynamicEditSelectors = [
-
-    ".remove-conductor-btn",
-    ".pdf-fuse-remove",
-    ".add-conductor-btn",
-    ".remove-row-btn",
-    ".remove-rack-btn",
-    ".systematic-grid-btn",
-
-    "#stationCtrRacksContainer .builder-action-btn",
-    "#connectedEndsContainer .builder-action-btn",
-
-    ".location-racks-wrapper > .builder-action-btn"
-
-  ];
+  const editElements =
+    document.querySelectorAll(
+      [
+        ".remove-conductor-btn",
+        ".pdf-fuse-remove",
+        ".add-conductor-btn",
+        ".remove-row-btn",
+        ".remove-rack-btn",
+        ".systematic-grid-btn",
+        "#stationCtrRacksContainer .builder-action-btn",
+        "#connectedEndsContainer .builder-action-btn"
+      ].join(",")
+    );
 
 
-  document
-    .querySelectorAll(
-      dynamicEditSelectors.join(",")
-    )
-    .forEach(
-      function (element) {
+  editElements.forEach(
+    function (element) {
+
+      /*
+         Open/Close buttons must remain usable
+         even in view-only mode.
+      */
+
+      if (
+        element.classList.contains(
+          "ctr-view-toggle"
+        )
+      ) {
 
         element.hidden =
-          !editable;
+          false;
+
+        return;
 
       }
-    );
+
+
+      element.hidden =
+        !editable;
+
+    }
+  );
 
 
   document
     .querySelectorAll(
       [
         ".station-rack-name-input",
-        ".location-rack-name-input",
         ".end-name-input",
         ".location-name-input"
       ].join(",")
@@ -989,14 +1098,6 @@ function applyStationBuilderAccessMode() {
 
         input.readOnly =
           !editable;
-
-
-        input.setAttribute(
-          "aria-readonly",
-          editable
-            ? "false"
-            : "true"
-        );
 
       }
     );
@@ -1012,187 +1113,62 @@ function applyStationBuilderAccessMode() {
         button.disabled =
           !editable;
 
-
-        if (!editable) {
-
-          button.title =
-            "View only";
-
-        }
-
       }
     );
-
-
-  document
-    .querySelectorAll(
-      ".pdf-fuse-note"
-    )
-    .forEach(
-      function (note) {
-
-        note.textContent =
-          editable
-            ? "Click symbol to edit"
-            : "View only";
-
-      }
-    );
-
-
-  if (!editable) {
-
-    if (
-      typeof closeEditor ===
-      "function"
-    ) {
-
-      closeEditor();
-
-    }
-
-
-    if (
-      typeof closeFuseEditor ===
-      "function"
-    ) {
-
-      closeFuseEditor();
-
-    }
-
-  }
 
 }
 
 
 /* =========================================================
-   DYNAMIC DOM WATCHER
+   THROTTLED ACCESS APPLY
 ========================================================= */
 
-const stationBuilderAccessObserver =
-  new MutationObserver(
-    function () {
-
-      if (
-        window.ctrAccess?.ready &&
-        stationWorkflowStatusLoaded
-      ) {
-
-        applyStationBuilderAccessMode();
-
-      }
-
-    }
-  );
+let stationAccessFrame =
+  null;
 
 
-[
-  stationCtrRacksContainer,
-  connectedEndsContainer
-].forEach(
-  function (container) {
+function scheduleStationAccessApply() {
 
-    if (container) {
+  if (
+    stationAccessFrame !==
+    null
+  ) {
 
-      stationBuilderAccessObserver.observe(
-        container,
-        {
-          childList:
-            true,
-
-          subtree:
-            true
-        }
-      );
-
-    }
+    return;
 
   }
-);
+
+
+  stationAccessFrame =
+    requestAnimationFrame(
+      function () {
+
+        stationAccessFrame =
+          null;
+
+
+        if (
+          window.ctrAccess?.ready
+        ) {
+
+          applyStationBuilderAccessMode();
+
+        }
+
+      }
+    );
+
+}
 
 
 /* =========================================================
-   CAPTURE-PHASE VIEW-ONLY PROTECTION
-========================================================= */
-
-document.addEventListener(
-  "click",
-  function (event) {
-
-    if (
-      canEditCurrentStationDraft()
-    ) {
-
-      return;
-
-    }
-
-
-    const blockedTarget =
-      event.target.closest(
-        [
-          "[data-station-edit-control]",
-          "#stationCtrRacksContainer .builder-action-btn",
-          "#connectedEndsContainer .builder-action-btn",
-          ".add-conductor-btn",
-          ".remove-conductor-btn",
-          ".remove-row-btn",
-          ".remove-rack-btn",
-          ".systematic-grid-btn",
-          ".pdf-fuse-remove",
-          ".pdf-fuse-symbol-btn",
-          ".terminal"
-        ].join(",")
-      );
-
-
-    if (!blockedTarget) {
-
-      return;
-
-    }
-
-
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-
-  },
-  true
-);
-
-
-/* =========================================================
-   ROLE ACCESS READY EVENT
+   ACCESS EVENT
 ========================================================= */
 
 window.addEventListener(
   "ctr-access-ready",
-  function () {
-
-    applyStationBuilderAccessMode();
-
-  }
+  scheduleStationAccessApply
 );
-
-
-/* =========================================================
-   DRAFT STATUS DISPLAY
-========================================================= */
-
-function setDraftStatus(message) {
-
-  if (
-    draftSaveStatus
-  ) {
-
-    draftSaveStatus.textContent =
-      message;
-
-  }
-
-}
 
 
 /* =========================================================
@@ -1204,7 +1180,15 @@ let selectedTerminal =
 
 
 let selectedTerminalOwner =
-  "station";
+  null;
+
+
+let selectedTerminalRack =
+  null;
+
+
+let selectedTerminalRow =
+  null;
 
 
 function openTerminalEditor(
@@ -1240,12 +1224,20 @@ function openTerminalEditor(
     owner;
 
 
+  selectedTerminalRack =
+    rack;
+
+
+  selectedTerminalRow =
+    row;
+
+
   if (
     selectedTerminalTitle
   ) {
 
     selectedTerminalTitle.textContent =
-      `${rack.name} / Row ${row.label} / Terminal ${terminal.number}`;
+      `${rack.name || "CTR"} / Row ${row.label} / Terminal ${terminal.number}`;
 
   }
 
@@ -1315,33 +1307,38 @@ function openTerminalEditor(
   );
 
 
-  terminalEditor.scrollIntoView({
+  terminalEditor.scrollIntoView(
+    {
+      behavior:
+        "smooth",
 
-    behavior:
-      "smooth",
-
-    block:
-      "center"
-
-  });
+      block:
+        "center"
+    }
+  );
 
 }
 
 
 function closeEditor() {
 
-  if (
-    terminalEditor
-  ) {
-
-    terminalEditor.classList.remove(
+  terminalEditor
+    ?.classList
+    .remove(
       "open"
     );
 
-  }
-
 
   selectedTerminal =
+    null;
+
+  selectedTerminalRack =
+    null;
+
+  selectedTerminalRow =
+    null;
+
+  selectedTerminalOwner =
     null;
 
 }
@@ -1369,32 +1366,36 @@ function saveTerminalData() {
 
   selectedTerminal.particular =
     circuitParticular
-      ? circuitParticular.value.trim()
-      : "";
+      ?.value
+      ?.trim() ||
+    "";
 
 
   selectedTerminal.locationBox =
     locationBox
-      ? locationBox.value.trim()
-      : "";
+      ?.value
+      ?.trim() ||
+    "";
 
 
   selectedTerminal.locationTerminal =
     locationTerminal
-      ? locationTerminal.value.trim()
-      : "";
+      ?.value
+      ?.trim() ||
+    "";
 
 
   selectedTerminal.status =
     terminalStatus
-      ? terminalStatus.value
-      : "SPARE";
+      ?.value ||
+    "SPARE";
 
 
   selectedTerminal.remarks =
     terminalRemarks
-      ? terminalRemarks.value.trim()
-      : "";
+      ?.value
+      ?.trim() ||
+    "";
 
 
   if (
@@ -1405,7 +1406,6 @@ function saveTerminalData() {
     renderConnectedEnds();
 
   }
-
   else {
 
     renderStationCtrRacks();
@@ -1461,8 +1461,11 @@ function createTerminalVisual(
 
 
   button.className =
-    terminal.status === "IN USE"
+    terminal.status ===
+    "IN USE"
+
       ? "terminal in-use"
+
       : "terminal";
 
 
@@ -1516,7 +1519,7 @@ function createTerminalVisual(
 
 
 /* =========================================================
-   REMOVE TERMINAL
+   REMOVE TERMINAL BUTTON
 ========================================================= */
 
 function createRemoveTerminalButton(
@@ -1554,14 +1557,19 @@ function createRemoveTerminalButton(
       event.stopPropagation();
 
 
-      const confirmed =
-        confirm(
-          `Remove Terminal ${terminal.number}?`
-        );
+      if (
+        !requireCurrentStationDraftEdit()
+      ) {
+
+        return;
+
+      }
 
 
       if (
-        !confirmed
+        !confirm(
+          `Remove Terminal ${terminal.number}?`
+        )
       ) {
 
         return;
@@ -1617,7 +1625,7 @@ let selectedFuseRerender =
 
 function openFuseEditor(
   fuse,
-  rack,
+  owner,
   rerender
 ) {
 
@@ -1630,7 +1638,9 @@ function openFuseEditor(
   }
 
 
-  if (!fuseEditor) {
+  if (
+    !fuseEditor
+  ) {
 
     return;
 
@@ -1645,26 +1655,34 @@ function openFuseEditor(
     rerender;
 
 
-  if (selectedFuseTitle) {
+  if (
+    selectedFuseTitle
+  ) {
 
     selectedFuseTitle.textContent =
-      `${rack.name} / ${fuse.label || "Fuse Point"}`;
+      `${owner.name || "CTR"} / ${fuse.label || "Fuse Point"}`;
 
   }
 
 
-  if (fuseLabelInput) {
+  if (
+    fuseLabelInput
+  ) {
 
     fuseLabelInput.value =
-      fuse.label || "";
+      fuse.label ||
+      "";
 
   }
 
 
-  if (fuseDetailsInput) {
+  if (
+    fuseDetailsInput
+  ) {
 
     fuseDetailsInput.value =
-      fuse.details || "";
+      fuse.details ||
+      "";
 
   }
 
@@ -1673,39 +1691,16 @@ function openFuseEditor(
     "open"
   );
 
-
-  fuseEditor.scrollIntoView({
-
-    behavior:
-      "smooth",
-
-    block:
-      "center"
-
-  });
-
-
-  setTimeout(
-    function () {
-
-      fuseDetailsInput?.focus();
-
-    },
-    150
-  );
-
 }
 
 
 function closeFuseEditor() {
 
-  if (fuseEditor) {
-
-    fuseEditor.classList.remove(
+  fuseEditor
+    ?.classList
+    .remove(
       "open"
     );
-
-  }
 
 
   selectedFuse =
@@ -1729,33 +1724,28 @@ function saveFuseData() {
   }
 
 
-  if (!selectedFuse) {
+  if (
+    !selectedFuse
+  ) {
 
     return;
 
   }
 
 
-  const label =
-    fuseLabelInput
-      ? fuseLabelInput.value.trim()
-      : "";
-
-
-  const details =
-    fuseDetailsInput
-      ? fuseDetailsInput.value.trim()
-      : "";
-
-
   selectedFuse.label =
-    label ||
+    fuseLabelInput
+      ?.value
+      ?.trim() ||
     selectedFuse.label ||
     "F1";
 
 
   selectedFuse.details =
-    details;
+    fuseDetailsInput
+      ?.value
+      ?.trim() ||
+    "";
 
 
   const rerender =
@@ -1799,12 +1789,12 @@ saveFuseEditButton
 
 
 /* =========================================================
-   PDF STYLE FUSE VISUAL
+   FUSE VISUAL
 ========================================================= */
 
 function createPdfFuseItem(
   fuse,
-  rack,
+  owner,
   rerender
 ) {
 
@@ -1818,43 +1808,44 @@ function createPdfFuseItem(
     "pdf-fuse-item";
 
 
-  const removeButton =
+  const remove =
     document.createElement(
       "button"
     );
 
 
-  removeButton.type =
+  remove.type =
     "button";
 
 
-  removeButton.className =
+  remove.className =
     "pdf-fuse-remove";
 
 
-  removeButton.textContent =
+  remove.textContent =
     "×";
 
 
-  removeButton.title =
-    `Remove ${fuse.label}`;
-
-
-  removeButton.addEventListener(
+  remove.addEventListener(
     "click",
     function (event) {
 
       event.stopPropagation();
 
 
-      const confirmed =
-        confirm(
-          `Remove ${fuse.label}?`
-        );
+      if (
+        !requireCurrentStationDraftEdit()
+      ) {
+
+        return;
+
+      }
 
 
       if (
-        !confirmed
+        !confirm(
+          `Remove ${fuse.label}?`
+        )
       ) {
 
         return;
@@ -1863,7 +1854,7 @@ function createPdfFuseItem(
 
 
       const index =
-        rack.fuseDetails.indexOf(
+        owner.fuseDetails.indexOf(
           fuse
         );
 
@@ -1872,7 +1863,7 @@ function createPdfFuseItem(
         index !== -1
       ) {
 
-        rack.fuseDetails.splice(
+        owner.fuseDetails.splice(
           index,
           1
         );
@@ -1896,56 +1887,40 @@ function createPdfFuseItem(
     "pdf-fuse-caption";
 
 
-  const description =
-    document.createElement(
-      "strong"
-    );
+  caption.innerHTML = `
+
+    <strong>
+      ${escapeHtml(
+        fuse.details ||
+        "Enter fuse details"
+      )}
+    </strong>
+
+    <span>
+      ${escapeHtml(
+        owner.name ||
+        "CTR"
+      )} FUSE
+    </span>
+
+  `;
 
 
-  description.textContent =
-    fuse.details ||
-    "Enter fuse details";
-
-
-  const rackReference =
-    document.createElement(
-      "span"
-    );
-
-
-  rackReference.textContent =
-    `${rack.name} FUSE`;
-
-
-  caption.appendChild(
-    description
-  );
-
-
-  caption.appendChild(
-    rackReference
-  );
-
-
-  const symbolButton =
+  const symbol =
     document.createElement(
       "button"
     );
 
 
-  symbolButton.type =
+  symbol.type =
     "button";
 
 
-  symbolButton.className =
+  symbol.className =
     "pdf-fuse-symbol-btn";
 
 
-  symbolButton.title =
-    "Click to edit fuse details";
-
-
-  symbolButton.innerHTML = `
+  symbol.innerHTML = `
 
     <svg
       width="82"
@@ -2032,13 +2007,13 @@ function createPdfFuseItem(
   `;
 
 
-  symbolButton.addEventListener(
+  symbol.addEventListener(
     "click",
     function () {
 
       openFuseEditor(
         fuse,
-        rack,
+        owner,
         rerender
       );
 
@@ -2057,45 +2032,14 @@ function createPdfFuseItem(
 
 
   fuseLabel.textContent =
-    fuse.label || "-";
+    fuse.label;
 
 
-  const note =
-    document.createElement(
-      "div"
-    );
-
-
-  note.className =
-    "pdf-fuse-note";
-
-
-  note.textContent =
-    "Click symbol to edit";
-
-
-  item.appendChild(
-    removeButton
-  );
-
-
-  item.appendChild(
-    caption
-  );
-
-
-  item.appendChild(
-    symbolButton
-  );
-
-
-  item.appendChild(
+  item.append(
+    remove,
+    caption,
+    symbol,
     fuseLabel
-  );
-
-
-  item.appendChild(
-    note
   );
 
 
@@ -2105,30 +2049,36 @@ function createPdfFuseItem(
 
 
 /* =========================================================
-   FUSE BUILDER
+   BUILD FUSE SECTION
 ========================================================= */
 
 function buildFuseSection(
-  rack,
+  owner,
   rerender,
   className,
   heading
 ) {
 
-  const element =
-    document.createElement(
+  owner.fuseDetails =
+    Array.isArray(
+      owner.fuseDetails
+    )
+      ? owner.fuseDetails
+      : [];
 
+
+  const section =
+    document.createElement(
       className ===
       "rack-fuse-section"
 
         ? "section"
 
         : "div"
-
     );
 
 
-  element.className =
+  section.className =
     className;
 
 
@@ -2148,112 +2098,87 @@ function buildFuseSection(
     );
 
 
-  const headingLabel =
-    document.createElement(
-      "span"
-    );
+  title.innerHTML = `
+
+    <span>
+      ${escapeHtml(
+        heading
+      )}
+    </span>
+
+    <strong>
+      ${escapeHtml(
+        owner.name ||
+        "CTR"
+      )} Fuse Details
+    </strong>
+
+  `;
 
 
-  headingLabel.textContent =
-    heading;
-
-
-  const headingTitle =
-    document.createElement(
-      "strong"
-    );
-
-
-  headingTitle.textContent =
-    `${rack.name} Fuse Details`;
-
-
-  title.appendChild(
-    headingLabel
-  );
-
-
-  title.appendChild(
-    headingTitle
-  );
-
-
-  const addButton =
+  const addFuse =
     document.createElement(
       "button"
     );
 
 
-  addButton.type =
+  addFuse.type =
     "button";
 
 
-  addButton.className =
+  addFuse.className =
     "add-conductor-btn";
 
 
-  addButton.textContent =
+  addFuse.textContent =
     "+ Add Fuse Point";
 
 
-  addButton.addEventListener(
+  addFuse.addEventListener(
     "click",
     function () {
 
-      const nextNumber =
-        getNextFuseNumber(
-          rack.fuseDetails
-        );
+      if (
+        !requireCurrentStationDraftEdit()
+      ) {
+
+        return;
+
+      }
 
 
       const fuse =
         createFusePoint(
-          nextNumber
+          getNextFuseNumber(
+            owner.fuseDetails
+          )
         );
 
 
-      rack.fuseDetails.push(
+      owner.fuseDetails.push(
         fuse
       );
 
 
       rerender();
 
-
-      setTimeout(
-        function () {
-
-          openFuseEditor(
-            fuse,
-            rack,
-            rerender
-          );
-
-        },
-        50
-      );
-
     }
   );
 
 
-  header.appendChild(
-    title
+  header.append(
+    title,
+    addFuse
   );
 
 
-  header.appendChild(
-    addButton
-  );
-
-
-  element.appendChild(
+  section.appendChild(
     header
   );
 
 
   if (
-    rack.fuseDetails.length ===
+    owner.fuseDetails.length ===
     0
   ) {
 
@@ -2268,15 +2193,15 @@ function buildFuseSection(
 
 
     empty.textContent =
-      "No fuse points added yet. Add fuse points to prepare the rack fuse drawing.";
+      "No fuse points added yet.";
 
 
-    element.appendChild(
+    section.appendChild(
       empty
     );
 
 
-    return element;
+    return section;
 
   }
 
@@ -2291,61 +2216,54 @@ function buildFuseSection(
     "pdf-fuse-strip";
 
 
-  rack.fuseDetails.forEach(
+  owner.fuseDetails.forEach(
     function (fuse) {
 
       strip.appendChild(
-
         createPdfFuseItem(
           fuse,
-          rack,
+          owner,
           rerender
         )
-
       );
 
     }
   );
 
 
-  element.appendChild(
+  section.appendChild(
     strip
   );
 
 
-  return element;
+  return section;
 
 }
 
 
 /* =========================================================
-   ROW BUILDER
+   BUILD TERMINAL ROW
 ========================================================= */
 
 function buildRowBlock(
-  rack,
-  row,
   owner,
+  row,
+  terminalOwner,
   rerender,
-  locationMode
+  locationMode = false
 ) {
 
   const block =
     document.createElement(
-
       locationMode
         ? "div"
         : "section"
-
     );
 
 
   block.className =
-
     locationMode
-
       ? "location-row-block"
-
       : "dynamic-rack-row";
 
 
@@ -2361,11 +2279,9 @@ function buildRowBlock(
 
   const title =
     document.createElement(
-
       locationMode
         ? "strong"
         : "div"
-
     );
 
 
@@ -2377,7 +2293,6 @@ function buildRowBlock(
       `ROW ${row.label}`;
 
   }
-
   else {
 
     title.innerHTML = `
@@ -2407,73 +2322,133 @@ function buildRowBlock(
     "row-header-actions";
 
 
-  const addConductorButton =
+  const addTerminal =
     document.createElement(
       "button"
     );
 
 
-  addConductorButton.type =
+  addTerminal.type =
     "button";
 
 
-  addConductorButton.className =
+  addTerminal.className =
     "add-conductor-btn";
 
 
-  addConductorButton.textContent =
+  addTerminal.textContent =
     "+ Add Conductor";
 
 
-  addConductorButton.addEventListener(
+  const removeRow =
+    document.createElement(
+      "button"
+    );
+
+
+  removeRow.type =
+    "button";
+
+
+  removeRow.className =
+    "remove-row-btn";
+
+
+  removeRow.textContent =
+    "Remove Row";
+
+
+  const strip =
+    document.createElement(
+      "div"
+    );
+
+
+  strip.className =
+    "terminal-strip dynamic-strip";
+
+
+  addTerminal.addEventListener(
     "click",
     function () {
 
-      row.terminals.push(
+      if (
+        !requireCurrentStationDraftEdit()
+      ) {
 
+        return;
+
+      }
+
+
+      const newTerminal =
         createTerminal(
-          row.terminals.length + 1
-        )
+          row.terminals.length +
+          1
+        );
 
+
+      row.terminals.push(
+        newTerminal
       );
 
 
-      rerender();
+      strip.appendChild(
+        createTerminalVisual(
+          owner,
+          row,
+          newTerminal,
+          terminalOwner
+        )
+      );
+
+
+      strip.appendChild(
+        createRemoveTerminalButton(
+          row,
+          newTerminal,
+          rerender
+        )
+      );
+
+
+      scheduleStationAccessApply();
 
     }
   );
 
 
-  const removeRowButton =
-    document.createElement(
-      "button"
-    );
-
-
-  removeRowButton.type =
-    "button";
-
-
-  removeRowButton.className =
-    "remove-row-btn";
-
-
-  removeRowButton.textContent =
-    "Remove Row";
-
-
-  removeRowButton.addEventListener(
+  removeRow.addEventListener(
     "click",
     function () {
 
-      const confirmed =
-        confirm(
-          `Remove Row ${row.label}?`
-        );
+      if (
+        !requireCurrentStationDraftEdit()
+      ) {
+
+        return;
+
+      }
 
 
       if (
-        !confirmed
+        owner.rows.length <=
+        1
+      ) {
+
+        alert(
+          "At least one row must remain."
+        );
+
+        return;
+
+      }
+
+
+      if (
+        !confirm(
+          `Remove Row ${row.label}?`
+        )
       ) {
 
         return;
@@ -2482,7 +2457,7 @@ function buildRowBlock(
 
 
       const index =
-        rack.rows.indexOf(
+        owner.rows.indexOf(
           row
         );
 
@@ -2491,14 +2466,14 @@ function buildRowBlock(
         index !== -1
       ) {
 
-        rack.rows.splice(
+        owner.rows.splice(
           index,
           1
         );
 
 
         relabelRows(
-          rack
+          owner
         );
 
 
@@ -2510,22 +2485,14 @@ function buildRowBlock(
   );
 
 
-  actions.appendChild(
-    addConductorButton
+  actions.append(
+    addTerminal,
+    removeRow
   );
 
 
-  actions.appendChild(
-    removeRowButton
-  );
-
-
-  header.appendChild(
-    title
-  );
-
-
-  header.appendChild(
+  header.append(
+    title,
     actions
   );
 
@@ -2535,39 +2502,25 @@ function buildRowBlock(
   );
 
 
-  const terminalStrip =
-    document.createElement(
-      "div"
-    );
-
-
-  terminalStrip.className =
-    "terminal-strip dynamic-strip";
-
-
   row.terminals.forEach(
     function (terminal) {
 
-      terminalStrip.appendChild(
-
+      strip.appendChild(
         createTerminalVisual(
-          rack,
+          owner,
           row,
           terminal,
-          owner
+          terminalOwner
         )
-
       );
 
 
-      terminalStrip.appendChild(
-
+      strip.appendChild(
         createRemoveTerminalButton(
           row,
           terminal,
           rerender
         )
-
       );
 
     }
@@ -2575,7 +2528,7 @@ function buildRowBlock(
 
 
   block.appendChild(
-    terminalStrip
+    strip
   );
 
 
@@ -2585,7 +2538,7 @@ function buildRowBlock(
 
 
 /* =========================================================
-   RENDER STATION CTR RACKS
+   RENDER STATION CTR RACKS - LAZY
 ========================================================= */
 
 function renderStationCtrRacks() {
@@ -2599,8 +2552,8 @@ function renderStationCtrRacks() {
   }
 
 
-  stationCtrRacksContainer.innerHTML =
-    "";
+  const fragment =
+    document.createDocumentFragment();
 
 
   stationCtrRacks.forEach(
@@ -2615,6 +2568,12 @@ function renderStationCtrRacks() {
       card.className =
         "ctr-rack-card";
 
+
+      card.dataset.rackId =
+        rack.id;
+
+
+      /* HEADER */
 
       const header =
         document.createElement(
@@ -2646,48 +2605,59 @@ function renderStationCtrRacks() {
         "CTR RACK";
 
 
-      const rackNameInput =
+      const nameInput =
         document.createElement(
           "input"
         );
 
 
-      rackNameInput.type =
+      nameInput.type =
         "text";
 
 
-      rackNameInput.className =
+      nameInput.className =
         "station-rack-name-input";
 
 
-      rackNameInput.value =
+      nameInput.value =
         rack.name;
 
 
-      rackNameInput.placeholder =
-        "Enter CTR rack name";
-
-
-      rackNameInput.addEventListener(
+      nameInput.addEventListener(
         "input",
         function () {
 
           rack.name =
-            rackNameInput.value;
+            nameInput.value;
 
         }
       );
 
 
-      titleArea.appendChild(
-        label
+      const summary =
+        document.createElement(
+          "small"
+        );
+
+
+      summary.className =
+        "ctr-lazy-summary";
+
+
+      summary.textContent =
+        `${rack.rows.length} Rows • ${getTerminalCount(
+          rack
+        )} Terminals • ${rack.fuseDetails.length} Fuse Points`;
+
+
+      titleArea.append(
+        label,
+        nameInput,
+        summary
       );
 
 
-      titleArea.appendChild(
-        rackNameInput
-      );
-
+      /* ACTIONS */
 
       const actions =
         document.createElement(
@@ -2710,39 +2680,99 @@ function renderStationCtrRacks() {
 
 
       status.textContent =
-        "Initial Setup";
+        currentStationWorkflowStatus ===
+        "DRAFT"
+
+          ? "Draft"
+
+          : "Initial Setup";
 
 
-      const removeRackButton =
+      const toggle =
         document.createElement(
           "button"
         );
 
 
-      removeRackButton.type =
+      toggle.type =
         "button";
 
 
-      removeRackButton.className =
-        "remove-rack-btn";
+      toggle.className =
+        "builder-action-btn ctr-view-toggle";
 
 
-      removeRackButton.textContent =
-        "Remove Rack";
+      toggle.textContent =
+        isRackOpen(rack)
+          ? "Close Rack"
+          : "Open Rack";
 
 
-      removeRackButton.addEventListener(
+      toggle.addEventListener(
         "click",
         function () {
 
-          const confirmed =
-            confirm(
-              `Remove ${rack.name}?`
+          if (
+            isRackOpen(
+              rack
+            )
+          ) {
+
+            openedStationRacks.delete(
+              rack.id
             );
+
+          }
+          else {
+
+            openedStationRacks.add(
+              rack.id
+            );
+
+          }
+
+
+          renderStationCtrRacks();
+
+        }
+      );
+
+
+      const remove =
+        document.createElement(
+          "button"
+        );
+
+
+      remove.type =
+        "button";
+
+
+      remove.className =
+        "remove-rack-btn";
+
+
+      remove.textContent =
+        "Remove Rack";
+
+
+      remove.addEventListener(
+        "click",
+        function () {
+
+          if (
+            !requireCurrentStationDraftEdit()
+          ) {
+
+            return;
+
+          }
 
 
           if (
-            !confirmed
+            !confirm(
+              `Remove ${rack.name}?`
+            )
           ) {
 
             return;
@@ -2766,6 +2796,11 @@ function renderStationCtrRacks() {
             );
 
 
+            openedStationRacks.delete(
+              rack.id
+            );
+
+
             renderStationCtrRacks();
 
           }
@@ -2774,22 +2809,15 @@ function renderStationCtrRacks() {
       );
 
 
-      actions.appendChild(
-        status
+      actions.append(
+        status,
+        toggle,
+        remove
       );
 
 
-      actions.appendChild(
-        removeRackButton
-      );
-
-
-      header.appendChild(
-        titleArea
-      );
-
-
-      header.appendChild(
+      header.append(
+        titleArea,
         actions
       );
 
@@ -2799,151 +2827,198 @@ function renderStationCtrRacks() {
       );
 
 
-      const drawing =
-        document.createElement(
-          "div"
-        );
+      /* DRAWING ONLY WHEN OPEN */
 
-
-      drawing.className =
-        "rack-drawing";
-
-
-      drawing.appendChild(
-
-        buildFuseSection(
-          rack,
-          renderStationCtrRacks,
-          "rack-fuse-section",
-          "FIRST STAGE"
+      if (
+        isRackOpen(
+          rack
         )
+      ) {
 
-      );
-
-
-      const toolbar =
-        document.createElement(
-          "div"
-        );
-
-
-      toolbar.className =
-        "rack-builder-toolbar";
-
-
-      const toolbarTitle =
-        document.createElement(
-          "div"
-        );
-
-
-      toolbarTitle.innerHTML = `
-
-        <span class="rack-sub-label">
-          CTR TERMINALS
-        </span>
-
-        <h4>
-          Row & Conductor Structure
-        </h4>
-
-      `;
-
-
-      const addRowButton =
-        document.createElement(
-          "button"
-        );
-
-
-      addRowButton.type =
-        "button";
-
-
-      addRowButton.className =
-        "builder-action-btn";
-
-
-      addRowButton.textContent =
-        "+ Add Row";
-
-
-      addRowButton.addEventListener(
-        "click",
-        function () {
-
-          rack.rows.push(
-
-            createRow(
-
-              getRowLabel(
-                rack.rows.length
-              ),
-
-              12
-
-            )
-
+        const drawing =
+          document.createElement(
+            "div"
           );
 
 
-          renderStationCtrRacks();
-
-        }
-      );
+        drawing.className =
+          "rack-drawing";
 
 
-      toolbar.appendChild(
-        toolbarTitle
-      );
+        drawing.appendChild(
+          buildFuseSection(
+            rack,
+            renderStationCtrRacks,
+            "rack-fuse-section",
+            "FIRST STAGE"
+          )
+        );
 
 
-      toolbar.appendChild(
-        addRowButton
-      );
-
-
-      drawing.appendChild(
-        toolbar
-      );
-
-
-      rack.rows.forEach(
-        function (row) {
-
-          drawing.appendChild(
-
-            buildRowBlock(
-              rack,
-              row,
-              "station",
-              renderStationCtrRacks,
-              false
-            )
-
+        const toolbar =
+          document.createElement(
+            "div"
           );
 
-        }
-      );
+
+        toolbar.className =
+          "rack-builder-toolbar";
 
 
-      card.appendChild(
-        drawing
-      );
+        const title =
+          document.createElement(
+            "div"
+          );
 
 
-      stationCtrRacksContainer.appendChild(
+        title.innerHTML = `
+
+          <span class="rack-sub-label">
+            CTR TERMINALS
+          </span>
+
+          <h4>
+            Row & Conductor Structure
+          </h4>
+
+        `;
+
+
+        const addRow =
+          document.createElement(
+            "button"
+          );
+
+
+        addRow.type =
+          "button";
+
+
+        addRow.className =
+          "builder-action-btn";
+
+
+        addRow.textContent =
+          "+ Add Row";
+
+
+        addRow.addEventListener(
+          "click",
+          function () {
+
+            if (
+              !requireCurrentStationDraftEdit()
+            ) {
+
+              return;
+
+            }
+
+
+            const columns =
+              rack.rows[0]
+                ?.terminals
+                ?.length ||
+              12;
+
+
+            const newRow =
+              createRow(
+                getRowLabel(
+                  rack.rows.length
+                ),
+                columns
+              );
+
+
+            rack.rows.push(
+              newRow
+            );
+
+
+            drawing.appendChild(
+              buildRowBlock(
+                rack,
+                newRow,
+                "station",
+                renderStationCtrRacks,
+                false
+              )
+            );
+
+
+            scheduleStationAccessApply();
+
+
+            window
+              .ctrGridControls
+              ?.refresh?.();
+
+          }
+        );
+
+
+        toolbar.append(
+          title,
+          addRow
+        );
+
+
+        drawing.appendChild(
+          toolbar
+        );
+
+
+        rack.rows.forEach(
+          function (row) {
+
+            drawing.appendChild(
+              buildRowBlock(
+                rack,
+                row,
+                "station",
+                renderStationCtrRacks,
+                false
+              )
+            );
+
+          }
+        );
+
+
+        card.appendChild(
+          drawing
+        );
+
+      }
+
+
+      fragment.appendChild(
         card
       );
 
     }
   );
 
+
+  stationCtrRacksContainer
+    .replaceChildren(
+      fragment
+    );
+
+
+  scheduleStationAccessApply();
+
+
+  window
+    .ctrGridControls
+    ?.refresh?.();
+
 }
 
 
 /* =========================================================
-   ADD STATION CTR RACK
+   ADD STATION RACK
 ========================================================= */
 
 addStationCtrRackButton
@@ -2951,16 +3026,34 @@ addStationCtrRackButton
     "click",
     function () {
 
-      stationCtrRacks.push(
+      if (
+        !requireCurrentStationDraftEdit()
+      ) {
 
+        return;
+
+      }
+
+
+      const rack =
         createCtrRack(
-
           getNextRackNumber(
             stationCtrRacks
           )
+        );
 
-        )
 
+      stationCtrRacks.push(
+        rack
+      );
+
+
+      /*
+         Newly added rack opens automatically.
+      */
+
+      openedStationRacks.add(
+        rack.id
       );
 
 
@@ -2971,7 +3064,7 @@ addStationCtrRackButton
 
 
 /* =========================================================
-   LOCATION BOX DIRECT ROW BUILDER
+   LOCATION BOX DRAWING
 ========================================================= */
 
 function createLocationRackView(
@@ -2988,10 +3081,6 @@ function createLocationRackView(
     "location-racks-wrapper";
 
 
-  /* =====================================================
-     LEGACY DATA COMPATIBILITY
-  ===================================================== */
-
   location.fuseDetails =
     Array.isArray(
       location.fuseDetails
@@ -3000,135 +3089,57 @@ function createLocationRackView(
       : [];
 
 
-  if (
-    !Array.isArray(
+  location.rows =
+    Array.isArray(
       location.rows
     )
+      ? location.rows
+      : [];
+
+
+  if (
+    location.rows.length ===
+    0
   ) {
 
-    const migratedRows =
-      [];
+    location.rows = [
 
+      createRow(
+        "A",
+        12
+      ),
 
-    if (
-      Array.isArray(
-        location.racks
+      createRow(
+        "B",
+        12
+      ),
+
+      createRow(
+        "C",
+        12
+      ),
+
+      createRow(
+        "D",
+        12
       )
-    ) {
 
-      location.racks.forEach(
-        function (legacyRack) {
-
-          if (
-            Array.isArray(
-              legacyRack?.fuseDetails
-            ) &&
-            location.fuseDetails.length === 0
-          ) {
-
-            legacyRack.fuseDetails.forEach(
-              function (fuse) {
-
-                location.fuseDetails.push(
-                  fuse
-                );
-
-              }
-            );
-
-          }
-
-
-          if (
-            Array.isArray(
-              legacyRack?.rows
-            )
-          ) {
-
-            legacyRack.rows.forEach(
-              function (row) {
-
-                migratedRows.push(
-                  row
-                );
-
-              }
-            );
-
-          }
-
-        }
-      );
-
-    }
-
-
-    if (
-      migratedRows.length === 0
-    ) {
-
-      migratedRows.push(
-
-        createRow(
-          "A",
-          12
-        ),
-
-        createRow(
-          "B",
-          12
-        ),
-
-        createRow(
-          "C",
-          12
-        ),
-
-        createRow(
-          "D",
-          12
-        )
-
-      );
-
-    }
-
-
-    location.rows =
-      migratedRows;
-
-
-    relabelRows(
-      location
-    );
+    ];
 
   }
 
 
-  delete location.racks;
-
-
-  /* =====================================================
-     LOCATION BOX FUSE DETAILS
-  ===================================================== */
-
-  const locationFuseSection =
+  wrapper.appendChild(
     buildFuseSection(
       location,
       renderConnectedEnds,
       "location-fuse-box",
       "FUSE DETAILS"
-    );
-
-
-  wrapper.appendChild(
-    locationFuseSection
+    )
   );
 
 
-  /* =====================================================
-     TERMINAL ROW / COLUMN TOOLBAR
-  ===================================================== */
+  /* TOOLBAR */
 
   const toolbar =
     document.createElement(
@@ -3140,17 +3151,17 @@ function createLocationRackView(
     "systematic-terminal-toolbar location-terminal-toolbar";
 
 
-  const titleArea =
+  const title =
     document.createElement(
       "div"
     );
 
 
-  titleArea.className =
+  title.className =
     "systematic-toolbar-title";
 
 
-  titleArea.innerHTML = `
+  title.innerHTML = `
 
     <span>
       LOCATION BOX TERMINALS
@@ -3173,50 +3184,53 @@ function createLocationRackView(
     "systematic-grid-actions";
 
 
-  /* -----------------------------------------------------
-     ADD ROW
-  ----------------------------------------------------- */
+  /* ADD ROW */
 
-  const addRowButton =
+  const addRow =
     document.createElement(
       "button"
     );
 
 
-  addRowButton.type =
+  addRow.type =
     "button";
 
 
-  addRowButton.className =
+  addRow.className =
     "systematic-grid-btn";
 
 
-  addRowButton.textContent =
+  addRow.textContent =
     "+ Add Row";
 
 
-  addRowButton.addEventListener(
+  addRow.addEventListener(
     "click",
     function () {
+
+      if (
+        !requireCurrentStationDraftEdit()
+      ) {
+
+        return;
+
+      }
+
 
       const columns =
         location.rows[0]
           ?.terminals
-          ?.length || 12;
+          ?.length ||
+        12;
 
 
       location.rows.push(
-
         createRow(
-
           getRowLabel(
             location.rows.length
           ),
-
           columns
-
         )
-
       );
 
 
@@ -3226,49 +3240,47 @@ function createLocationRackView(
   );
 
 
-  /* -----------------------------------------------------
-     ADD COLUMN
-  ----------------------------------------------------- */
+  /* ADD COLUMN */
 
-  const addColumnButton =
+  const addColumn =
     document.createElement(
       "button"
     );
 
 
-  addColumnButton.type =
+  addColumn.type =
     "button";
 
 
-  addColumnButton.className =
+  addColumn.className =
     "systematic-grid-btn";
 
 
-  addColumnButton.textContent =
+  addColumn.textContent =
     "+ Add Column";
 
 
-  addColumnButton.addEventListener(
+  addColumn.addEventListener(
     "click",
     function () {
+
+      if (
+        !requireCurrentStationDraftEdit()
+      ) {
+
+        return;
+
+      }
+
 
       location.rows.forEach(
         function (row) {
 
-          row.terminals =
-            Array.isArray(
-              row.terminals
-            )
-              ? row.terminals
-              : [];
-
-
           row.terminals.push(
-
             createTerminal(
-              row.terminals.length + 1
+              row.terminals.length +
+              1
             )
-
           );
 
 
@@ -3286,34 +3298,42 @@ function createLocationRackView(
   );
 
 
-  /* -----------------------------------------------------
-     REMOVE ROW
-  ----------------------------------------------------- */
+  /* REMOVE ROW */
 
-  const removeRowButton =
+  const removeRow =
     document.createElement(
       "button"
     );
 
 
-  removeRowButton.type =
+  removeRow.type =
     "button";
 
 
-  removeRowButton.className =
+  removeRow.className =
     "systematic-grid-btn systematic-remove-btn";
 
 
-  removeRowButton.textContent =
+  removeRow.textContent =
     "− Remove Row";
 
 
-  removeRowButton.addEventListener(
+  removeRow.addEventListener(
     "click",
     function () {
 
       if (
-        location.rows.length <= 1
+        !requireCurrentStationDraftEdit()
+      ) {
+
+        return;
+
+      }
+
+
+      if (
+        location.rows.length <=
+        1
       ) {
 
         alert(
@@ -3325,19 +3345,11 @@ function createLocationRackView(
       }
 
 
-      const lastRow =
-        location.rows[
-          location.rows.length - 1
-        ];
-
-
-      const confirmed =
-        confirm(
-          `Remove Row ${lastRow.label} from ${location.name}?`
-        );
-
-
-      if (!confirmed) {
+      if (
+        !confirm(
+          "Remove last row?"
+        )
+      ) {
 
         return;
 
@@ -3358,40 +3370,48 @@ function createLocationRackView(
   );
 
 
-  /* -----------------------------------------------------
-     REMOVE COLUMN
-  ----------------------------------------------------- */
+  /* REMOVE COLUMN */
 
-  const removeColumnButton =
+  const removeColumn =
     document.createElement(
       "button"
     );
 
 
-  removeColumnButton.type =
+  removeColumn.type =
     "button";
 
 
-  removeColumnButton.className =
+  removeColumn.className =
     "systematic-grid-btn systematic-remove-btn";
 
 
-  removeColumnButton.textContent =
+  removeColumn.textContent =
     "− Remove Column";
 
 
-  removeColumnButton.addEventListener(
+  removeColumn.addEventListener(
     "click",
     function () {
 
-      const currentColumns =
+      if (
+        !requireCurrentStationDraftEdit()
+      ) {
+
+        return;
+
+      }
+
+
+      const columns =
         location.rows[0]
           ?.terminals
-          ?.length || 0;
+          ?.length ||
+        0;
 
 
       if (
-        currentColumns <= 1
+        columns <= 1
       ) {
 
         alert(
@@ -3403,13 +3423,11 @@ function createLocationRackView(
       }
 
 
-      const confirmed =
-        confirm(
-          `Remove Column ${currentColumns} from all rows of ${location.name}?`
-        );
-
-
-      if (!confirmed) {
+      if (
+        !confirm(
+          `Remove Column ${columns}?`
+        )
+      ) {
 
         return;
 
@@ -3436,32 +3454,16 @@ function createLocationRackView(
   );
 
 
-  actions.appendChild(
-    addRowButton
+  actions.append(
+    addRow,
+    addColumn,
+    removeRow,
+    removeColumn
   );
 
 
-  actions.appendChild(
-    addColumnButton
-  );
-
-
-  actions.appendChild(
-    removeRowButton
-  );
-
-
-  actions.appendChild(
-    removeColumnButton
-  );
-
-
-  toolbar.appendChild(
-    titleArea
-  );
-
-
-  toolbar.appendChild(
+  toolbar.append(
+    title,
     actions
   );
 
@@ -3471,15 +3473,10 @@ function createLocationRackView(
   );
 
 
-  /* =====================================================
-     LOCATION BOX ROWS
-  ===================================================== */
-
   location.rows.forEach(
     function (row) {
 
       wrapper.appendChild(
-
         buildRowBlock(
           location,
           row,
@@ -3487,7 +3484,6 @@ function createLocationRackView(
           renderConnectedEnds,
           true
         )
-
       );
 
     }
@@ -3500,7 +3496,7 @@ function createLocationRackView(
 
 
 /* =========================================================
-   RENDER CONNECTED ENDS
+   RENDER CONNECTED ENDS - LAZY
 ========================================================= */
 
 function renderConnectedEnds() {
@@ -3514,8 +3510,8 @@ function renderConnectedEnds() {
   }
 
 
-  connectedEndsContainer.innerHTML =
-    "";
+  const fragment =
+    document.createDocumentFragment();
 
 
   connectedEnds.forEach(
@@ -3530,6 +3526,10 @@ function renderConnectedEnds() {
       card.className =
         "connected-end-card";
 
+
+      /* ===================================================
+         END HEADER
+      =================================================== */
 
       const header =
         document.createElement(
@@ -3557,46 +3557,53 @@ function renderConnectedEnds() {
         "CONNECTED END";
 
 
-      const endNameInput =
+      const endName =
         document.createElement(
           "input"
         );
 
 
-      endNameInput.type =
+      endName.type =
         "text";
 
 
-      endNameInput.className =
+      endName.className =
         "end-name-input";
 
 
-      endNameInput.value =
+      endName.value =
         end.name;
 
 
-      endNameInput.placeholder =
-        "Enter actual End name";
-
-
-      endNameInput.addEventListener(
+      endName.addEventListener(
         "input",
         function () {
 
           end.name =
-            endNameInput.value;
+            endName.value;
 
         }
       );
 
 
-      titleArea.appendChild(
-        label
-      );
+      const summary =
+        document.createElement(
+          "small"
+        );
 
 
-      titleArea.appendChild(
-        endNameInput
+      summary.className =
+        "ctr-lazy-summary";
+
+
+      summary.textContent =
+        `${end.locations.length} Location Boxes`;
+
+
+      titleArea.append(
+        label,
+        endName,
+        summary
       );
 
 
@@ -3610,34 +3617,105 @@ function renderConnectedEnds() {
         "end-header-actions";
 
 
-      const addLocationButton =
+      const toggleEnd =
         document.createElement(
           "button"
         );
 
 
-      addLocationButton.type =
+      toggleEnd.type =
         "button";
 
 
-      addLocationButton.className =
-        "builder-action-btn";
+      toggleEnd.className =
+        "builder-action-btn ctr-view-toggle";
 
 
-      addLocationButton.textContent =
-        "+ Add Location Box";
+      toggleEnd.textContent =
+        isEndOpen(end)
+          ? "Close End"
+          : "Open End";
 
 
-      addLocationButton.addEventListener(
+      toggleEnd.addEventListener(
         "click",
         function () {
 
-          end.locations.push(
-
-            createLocation(
+          if (
+            isEndOpen(
               end
             )
+          ) {
 
+            openedConnectedEnds.delete(
+              end.id
+            );
+
+          }
+          else {
+
+            openedConnectedEnds.add(
+              end.id
+            );
+
+          }
+
+
+          renderConnectedEnds();
+
+        }
+      );
+
+
+      const addLocation =
+        document.createElement(
+          "button"
+        );
+
+
+      addLocation.type =
+        "button";
+
+
+      addLocation.className =
+        "builder-action-btn";
+
+
+      addLocation.textContent =
+        "+ Add Location Box";
+
+
+      addLocation.addEventListener(
+        "click",
+        function () {
+
+          if (
+            !requireCurrentStationDraftEdit()
+          ) {
+
+            return;
+
+          }
+
+
+          const location =
+            createLocation(
+              end
+            );
+
+
+          end.locations.push(
+            location
+          );
+
+
+          openedConnectedEnds.add(
+            end.id
+          );
+
+
+          openedLocationBoxes.add(
+            location.id
           );
 
 
@@ -3647,36 +3725,41 @@ function renderConnectedEnds() {
       );
 
 
-      const removeEndButton =
+      const removeEnd =
         document.createElement(
           "button"
         );
 
 
-      removeEndButton.type =
+      removeEnd.type =
         "button";
 
 
-      removeEndButton.className =
+      removeEnd.className =
         "remove-rack-btn";
 
 
-      removeEndButton.textContent =
+      removeEnd.textContent =
         "Remove End";
 
 
-      removeEndButton.addEventListener(
+      removeEnd.addEventListener(
         "click",
         function () {
 
-          const confirmed =
-            confirm(
-              `Remove ${end.name}?`
-            );
+          if (
+            !requireCurrentStationDraftEdit()
+          ) {
+
+            return;
+
+          }
 
 
           if (
-            !confirmed
+            !confirm(
+              `Remove ${end.name}?`
+            )
           ) {
 
             return;
@@ -3700,6 +3783,11 @@ function renderConnectedEnds() {
             );
 
 
+            openedConnectedEnds.delete(
+              end.id
+            );
+
+
             renderConnectedEnds();
 
           }
@@ -3708,22 +3796,15 @@ function renderConnectedEnds() {
       );
 
 
-      actions.appendChild(
-        addLocationButton
+      actions.append(
+        toggleEnd,
+        addLocation,
+        removeEnd
       );
 
 
-      actions.appendChild(
-        removeEndButton
-      );
-
-
-      header.appendChild(
-        titleArea
-      );
-
-
-      header.appendChild(
+      header.append(
+        titleArea,
         actions
       );
 
@@ -3733,232 +3814,354 @@ function renderConnectedEnds() {
       );
 
 
-      const locationGrid =
-        document.createElement(
-          "div"
-        );
-
-
-      locationGrid.className =
-        "dynamic-location-grid";
-
+      /* ===================================================
+         LOCATIONS ONLY WHEN END OPEN
+      =================================================== */
 
       if (
-        end.locations.length ===
-        0
+        isEndOpen(
+          end
+        )
       ) {
 
-        const empty =
+        const locationGrid =
           document.createElement(
             "div"
           );
 
 
-        empty.className =
-          "location-empty-state";
+        locationGrid.className =
+          "dynamic-location-grid";
 
 
-        empty.textContent =
-          "No location boxes added yet.";
+        if (
+          end.locations.length ===
+          0
+        ) {
 
-
-        locationGrid.appendChild(
-          empty
-        );
-
-      }
-
-
-      end.locations.forEach(
-        function (location) {
-
-          const locationCard =
-            document.createElement(
-              "article"
-            );
-
-
-          locationCard.className =
-            "dynamic-location-card";
-
-
-          const locationHeader =
+          const empty =
             document.createElement(
               "div"
             );
 
 
-          locationHeader.className =
-            "location-box-header";
+          empty.className =
+            "location-empty-state";
 
 
-          const title =
-            document.createElement(
-              "div"
-            );
+          empty.textContent =
+            "No location boxes added yet.";
 
 
-          title.className =
-            "location-box-title-area";
-
-
-          const locationLabel =
-            document.createElement(
-              "span"
-            );
-
-
-          locationLabel.textContent =
-            "LOCATION BOX";
-
-
-          const locationNameInput =
-            document.createElement(
-              "input"
-            );
-
-
-          locationNameInput.type =
-            "text";
-
-
-          locationNameInput.className =
-            "location-name-input";
-
-
-          locationNameInput.value =
-            location.name;
-
-
-          locationNameInput.placeholder =
-            "Enter Location Box name";
-
-
-          locationNameInput.addEventListener(
-            "input",
-            function () {
-
-              location.name =
-                locationNameInput.value;
-
-            }
+          locationGrid.appendChild(
+            empty
           );
 
-
-          title.appendChild(
-            locationLabel
-          );
+        }
 
 
-          title.appendChild(
-            locationNameInput
-          );
+        end.locations.forEach(
+          function (location) {
+
+            const locationCard =
+              document.createElement(
+                "article"
+              );
 
 
-          const removeLocationButton =
-            document.createElement(
-              "button"
-            );
+            locationCard.className =
+              "dynamic-location-card";
 
 
-          removeLocationButton.type =
-            "button";
+            const locationHeader =
+              document.createElement(
+                "div"
+              );
 
 
-          removeLocationButton.className =
-            "remove-rack-btn";
+            locationHeader.className =
+              "location-box-header";
 
 
-          removeLocationButton.textContent =
-            "Remove Location Box";
+            const locationTitle =
+              document.createElement(
+                "div"
+              );
 
 
-          removeLocationButton.addEventListener(
-            "click",
-            function () {
-
-              const confirmed =
-                confirm(
-                  `Remove ${location.name}?`
-                );
+            locationTitle.className =
+              "location-box-title-area";
 
 
-              if (
-                !confirmed
-              ) {
+            const locationLabel =
+              document.createElement(
+                "span"
+              );
 
-                return;
+
+            locationLabel.textContent =
+              "LOCATION BOX";
+
+
+            const locationName =
+              document.createElement(
+                "input"
+              );
+
+
+            locationName.type =
+              "text";
+
+
+            locationName.className =
+              "location-name-input";
+
+
+            locationName.value =
+              location.name;
+
+
+            locationName.addEventListener(
+              "input",
+              function () {
+
+                location.name =
+                  locationName.value;
 
               }
+            );
 
 
-              const index =
-                end.locations.indexOf(
-                  location
-                );
+            const locationSummary =
+              document.createElement(
+                "small"
+              );
 
 
-              if (
-                index !== -1
-              ) {
+            locationSummary.className =
+              "ctr-lazy-summary";
 
-                end.locations.splice(
-                  index,
-                  1
-                );
+
+            locationSummary.textContent =
+              `${location.rows.length} Rows • ${getTerminalCount(
+                location
+              )} Terminals • ${location.fuseDetails.length} Fuse Points`;
+
+
+            locationTitle.append(
+              locationLabel,
+              locationName,
+              locationSummary
+            );
+
+
+            const locationActions =
+              document.createElement(
+                "div"
+              );
+
+
+            locationActions.className =
+              "end-header-actions";
+
+
+            const toggleLocation =
+              document.createElement(
+                "button"
+              );
+
+
+            toggleLocation.type =
+              "button";
+
+
+            toggleLocation.className =
+              "builder-action-btn ctr-view-toggle";
+
+
+            toggleLocation.textContent =
+              isLocationOpen(
+                location
+              )
+
+                ? "Close Location"
+
+                : "Open Location";
+
+
+            toggleLocation.addEventListener(
+              "click",
+              function () {
+
+                if (
+                  isLocationOpen(
+                    location
+                  )
+                ) {
+
+                  openedLocationBoxes.delete(
+                    location.id
+                  );
+
+                }
+                else {
+
+                  openedLocationBoxes.add(
+                    location.id
+                  );
+
+                }
 
 
                 renderConnectedEnds();
 
               }
+            );
+
+
+            const removeLocation =
+              document.createElement(
+                "button"
+              );
+
+
+            removeLocation.type =
+              "button";
+
+
+            removeLocation.className =
+              "remove-rack-btn";
+
+
+            removeLocation.textContent =
+              "Remove Location Box";
+
+
+            removeLocation.addEventListener(
+              "click",
+              function () {
+
+                if (
+                  !requireCurrentStationDraftEdit()
+                ) {
+
+                  return;
+
+                }
+
+
+                if (
+                  !confirm(
+                    `Remove ${location.name}?`
+                  )
+                ) {
+
+                  return;
+
+                }
+
+
+                const index =
+                  end.locations.indexOf(
+                    location
+                  );
+
+
+                if (
+                  index !== -1
+                ) {
+
+                  end.locations.splice(
+                    index,
+                    1
+                  );
+
+
+                  openedLocationBoxes.delete(
+                    location.id
+                  );
+
+
+                  renderConnectedEnds();
+
+                }
+
+              }
+            );
+
+
+            locationActions.append(
+              toggleLocation,
+              removeLocation
+            );
+
+
+            locationHeader.append(
+              locationTitle,
+              locationActions
+            );
+
+
+            locationCard.appendChild(
+              locationHeader
+            );
+
+
+            /*
+               Heavy terminal drawing only exists when
+               Location Box is opened.
+            */
+
+            if (
+              isLocationOpen(
+                location
+              )
+            ) {
+
+              locationCard.appendChild(
+                createLocationRackView(
+                  location
+                )
+              );
 
             }
-          );
 
 
-          locationHeader.appendChild(
-            title
-          );
+            locationGrid.appendChild(
+              locationCard
+            );
+
+          }
+        );
 
 
-          locationHeader.appendChild(
-            removeLocationButton
-          );
+        card.appendChild(
+          locationGrid
+        );
+
+      }
 
 
-          locationCard.appendChild(
-            locationHeader
-          );
-
-
-          locationCard.appendChild(
-
-            createLocationRackView(
-              location
-            )
-
-          );
-
-
-          locationGrid.appendChild(
-            locationCard
-          );
-
-        }
-      );
-
-
-      card.appendChild(
-        locationGrid
-      );
-
-
-      connectedEndsContainer.appendChild(
+      fragment.appendChild(
         card
       );
 
     }
   );
+
+
+  connectedEndsContainer
+    .replaceChildren(
+      fragment
+    );
+
+
+  scheduleStationAccessApply();
+
+
+  window
+    .ctrGridControls
+    ?.refresh?.();
 
 }
 
@@ -3972,8 +4175,26 @@ addConnectedEndButton
     "click",
     function () {
 
+      if (
+        !requireCurrentStationDraftEdit()
+      ) {
+
+        return;
+
+      }
+
+
+      const end =
+        createConnectedEnd();
+
+
       connectedEnds.push(
-        createConnectedEnd()
+        end
+      );
+
+
+      openedConnectedEnds.add(
+        end.id
       );
 
 
@@ -3984,7 +4205,7 @@ addConnectedEndButton
 
 
 /* =========================================================
-   NORMALIZE LOADED RACK DATA
+   NORMALIZE SAVED RACK
 ========================================================= */
 
 function normalizeRack(
@@ -3993,9 +4214,11 @@ function normalizeRack(
 ) {
 
   const rack =
-
-    source &&
-    typeof source === "object"
+    (
+      source &&
+      typeof source ===
+      "object"
+    )
 
       ? source
 
@@ -4020,24 +4243,18 @@ function normalizeRack(
 
 
   rack.fuseDetails =
-
     Array.isArray(
       rack.fuseDetails
     )
-
       ? rack.fuseDetails
-
       : [];
 
 
   rack.rows =
-
     Array.isArray(
       rack.rows
     )
-
       ? rack.rows
-
       : [];
 
 
@@ -4084,13 +4301,10 @@ function normalizeRack(
 
 
       row.terminals =
-
         Array.isArray(
           row.terminals
         )
-
           ? row.terminals
-
           : [];
 
 
@@ -4107,7 +4321,8 @@ function normalizeRack(
 
           terminal.number =
             String(
-              terminalIndex + 1
+              terminalIndex +
+              1
             )
               .padStart(
                 2,
@@ -4152,14 +4367,15 @@ function normalizeRack(
 
 
 /* =========================================================
-   APPLY LOADED SUPABASE DRAFT
+   APPLY SAVED DRAFT DATA
 ========================================================= */
 
 function applyDraftData(data) {
 
   if (
     !data ||
-    typeof data !== "object"
+    typeof data !==
+    "object"
   ) {
 
     return;
@@ -4167,9 +4383,7 @@ function applyDraftData(data) {
   }
 
 
-  /* -------------------------------------------------------
-     STATION CTR RACKS
-  ------------------------------------------------------- */
+  /* STATION RACKS */
 
   if (
     Array.isArray(
@@ -4202,9 +4416,7 @@ function applyDraftData(data) {
   }
 
 
-  /* -------------------------------------------------------
-     CONNECTED ENDS
-  ------------------------------------------------------- */
+  /* CONNECTED ENDS */
 
   if (
     Array.isArray(
@@ -4220,9 +4432,9 @@ function applyDraftData(data) {
         ) {
 
           const end =
-
             sourceEnd &&
-            typeof sourceEnd === "object"
+            typeof sourceEnd ===
+            "object"
 
               ? sourceEnd
 
@@ -4247,13 +4459,10 @@ function applyDraftData(data) {
 
 
           end.locations =
-
             Array.isArray(
               end.locations
             )
-
               ? end.locations
-
               : [];
 
 
@@ -4265,9 +4474,9 @@ function applyDraftData(data) {
               ) {
 
                 const location =
-
                   sourceLocation &&
-                  typeof sourceLocation === "object"
+                  typeof sourceLocation ===
+                  "object"
 
                     ? sourceLocation
 
@@ -4291,18 +4500,7 @@ function applyDraftData(data) {
                   `Location Box ${location.autoNumber}`;
 
 
-                /* =====================================================
-                   LOCATION BOX FUSE MIGRATION
-
-                   New:
-                   Location Box -> fuseDetails
-
-                   Old:
-                   Location Box -> K1/K2 -> fuseDetails
-                ===================================================== */
-
-                let locationFuses =
-
+                let fuses =
                   Array.isArray(
                     location.fuseDetails
                   )
@@ -4312,94 +4510,21 @@ function applyDraftData(data) {
                     : [];
 
 
-                if (
-                  locationFuses.length === 0 &&
-                  Array.isArray(
-                    location.racks
-                  )
-                ) {
-
-                  location.racks.forEach(
-                    function (legacyRack) {
-
-                      if (
-                        Array.isArray(
-                          legacyRack?.fuseDetails
-                        )
-                      ) {
-
-                        legacyRack.fuseDetails.forEach(
-                          function (fuse) {
-
-                            locationFuses.push(
-                              fuse
-                            );
-
-                          }
-                        );
-
-                      }
-
-                    }
-                  );
-
-                }
-
-
-                locationFuses.forEach(
-                  function (
-                    fuse,
-                    index
-                  ) {
-
-                    fuse.id =
-                      fuse.id ||
-                      createId();
-
-
-                    fuse.label =
-                      fuse.label ||
-                      `F${index + 1}`;
-
-
-                    fuse.details =
-                      fuse.details ||
-                      "";
-
-                  }
-                );
-
-
-                location.fuseDetails =
-                  locationFuses;
-
-
-                /* =====================================================
-                   LOCATION BOX ROW MIGRATION
-
-                   New:
-                   Location Box -> rows
-
-                   Old:
-                   Location Box -> K1/K2 -> rows
-                ===================================================== */
-
-                let locationRows =
-                  [];
-
-
-                if (
+                let rows =
                   Array.isArray(
                     location.rows
                   )
-                ) {
 
-                  locationRows =
-                    location.rows;
+                    ? location.rows
 
-                }
+                    : [];
 
-                else if (
+
+                /* =================================================
+                   MIGRATE OLD LOCATION K-RACK FORMAT
+                ================================================= */
+
+                if (
                   Array.isArray(
                     location.racks
                   )
@@ -4409,19 +4534,33 @@ function applyDraftData(data) {
                     function (legacyRack) {
 
                       if (
+                        fuses.length ===
+                          0 &&
                         Array.isArray(
-                          legacyRack?.rows
+                          legacyRack
+                            ?.fuseDetails
                         )
                       ) {
 
-                        legacyRack.rows.forEach(
-                          function (row) {
+                        fuses.push(
+                          ...legacyRack
+                            .fuseDetails
+                        );
 
-                            locationRows.push(
-                              row
-                            );
+                      }
 
-                          }
+
+                      if (
+                        rows.length ===
+                          0 &&
+                        Array.isArray(
+                          legacyRack
+                            ?.rows
+                        )
+                      ) {
+
+                        rows.push(
+                          ...legacyRack.rows
                         );
 
                       }
@@ -4433,10 +4572,11 @@ function applyDraftData(data) {
 
 
                 if (
-                  locationRows.length === 0
+                  rows.length ===
+                  0
                 ) {
 
-                  locationRows = [
+                  rows = [
 
                     createRow(
                       "A",
@@ -4463,32 +4603,31 @@ function applyDraftData(data) {
                 }
 
 
-                const normalizedLocationData =
+                const normalized =
                   normalizeRack(
                     {
-                      rows:
-                        locationRows,
-
                       fuseDetails:
-                        []
+                        fuses,
+
+                      rows:
+                        rows
                     },
                     1
                   );
 
 
+                location.fuseDetails =
+                  normalized.fuseDetails;
+
+
                 location.rows =
-                  normalizedLocationData.rows;
+                  normalized.rows;
 
 
                 relabelRows(
                   location
                 );
 
-
-                /*
-                  Old K-rack hierarchy removed only after
-                  Fuse + Row data has been preserved.
-                */
 
                 delete location.racks;
 
@@ -4517,7 +4656,7 @@ function applyDraftData(data) {
 
 
 /* =========================================================
-   AUTHENTICATED USER
+   AUTH USER
 ========================================================= */
 
 async function getCurrentUser() {
@@ -4533,7 +4672,7 @@ async function getCurrentUser() {
 
   if (
     error ||
-    !data.user
+    !data?.user
   ) {
 
     throw new Error(
@@ -4549,7 +4688,7 @@ async function getCurrentUser() {
 
 
 /* =========================================================
-   SAVE CTR DRAFT TO SUPABASE
+   SAVE CTR DRAFT
 ========================================================= */
 
 async function saveCtrDraft() {
@@ -4571,7 +4710,6 @@ async function saveCtrDraft() {
       "Station ID is missing."
     );
 
-
     return;
 
   }
@@ -4592,7 +4730,7 @@ async function saveCtrDraft() {
 
 
   setDraftStatus(
-    "Saving draft to database..."
+    "Saving draft..."
   );
 
 
@@ -4610,7 +4748,7 @@ async function saveCtrDraft() {
     const draftData = {
 
       schemaVersion:
-        1,
+        2,
 
       stationCtrRacks:
         stationCtrRacks,
@@ -4632,7 +4770,6 @@ async function saveCtrDraft() {
           "ctr_drafts"
         )
         .upsert(
-
           {
 
             station_id:
@@ -4648,14 +4785,12 @@ async function saveCtrDraft() {
               user.id
 
           },
-
           {
 
             onConflict:
               "station_id"
 
           }
-
         );
 
 
@@ -4669,26 +4804,21 @@ async function saveCtrDraft() {
 
 
     const {
-
       data:
         stationStatus,
 
       error:
         statusError
-
     } =
       await supabaseClient
         .rpc(
-
           "mark_station_as_draft",
-
           {
 
             p_station_id:
               currentStationId
 
           }
-
         );
 
 
@@ -4696,63 +4826,33 @@ async function saveCtrDraft() {
       statusError
     ) {
 
-      console.error(
-        "Station status sync error:",
-        statusError
-      );
-
-
-      throw new Error(
-
-        "CTR Draft was saved, but station status could not be updated: " +
-        statusError.message
-
-      );
+      throw statusError;
 
     }
 
 
-    console.log(
-      "Station CTR status:",
-      stationStatus
-    );
+    currentStationWorkflowStatus =
 
-
-    if (
       typeof stationStatus ===
       "string"
-    ) {
 
-      currentStationWorkflowStatus =
-        stationStatus;
+        ? stationStatus
 
-    }
-
-    else {
-
-      currentStationWorkflowStatus =
-        "DRAFT";
-
-    }
+        : "DRAFT";
 
 
     stationWorkflowStatusLoaded =
       true;
 
 
-    applyStationBuilderAccessMode();
-
-
-    const displayTime =
-      new Date(
-        savedAt
-      )
-        .toLocaleString();
-
-
     setDraftStatus(
-      `Saved to database: ${displayTime}`
+      `Saved: ${new Date(
+        savedAt
+      ).toLocaleString()}`
     );
+
+
+    scheduleStationAccessApply();
 
 
     alert(
@@ -4775,10 +4875,8 @@ async function saveCtrDraft() {
 
 
     alert(
-
       error.message ||
       "CTR Draft could not be saved."
-
     );
 
   }
@@ -4803,9 +4901,8 @@ async function saveCtrDraft() {
 }
 
 
-
 /* =========================================================
-   LOAD CTR DRAFT FROM SUPABASE
+   LOAD DRAFT
 ========================================================= */
 
 async function loadCtrDraft() {
@@ -4818,14 +4915,13 @@ async function loadCtrDraft() {
       "Station ID missing"
     );
 
-
     return;
 
   }
 
 
   setDraftStatus(
-    "Checking database draft..."
+    "Loading CTR data..."
   );
 
 
@@ -4867,9 +4963,8 @@ async function loadCtrDraft() {
     ) {
 
       setDraftStatus(
-        "No database draft saved yet"
+        "No saved draft yet"
       );
-
 
       return;
 
@@ -4881,33 +4976,21 @@ async function loadCtrDraft() {
     );
 
 
-    const savedDate =
-
-      data.updated_at
-
-        ? new Date(
-            data.updated_at
-          )
-
-        : null;
-
-
     if (
-      savedDate
+      data.updated_at
     ) {
 
       setDraftStatus(
-
-        `Loaded from database: ${savedDate.toLocaleString()}`
-
+        `Loaded: ${new Date(
+          data.updated_at
+        ).toLocaleString()}`
       );
 
     }
-
     else {
 
       setDraftStatus(
-        "Draft loaded from database"
+        "Draft loaded"
       );
 
     }
@@ -4923,7 +5006,7 @@ async function loadCtrDraft() {
 
 
     setDraftStatus(
-      "Unable to load database draft"
+      "Unable to load draft"
     );
 
   }
@@ -4932,7 +5015,7 @@ async function loadCtrDraft() {
 
 
 /* =========================================================
-   RESET CTR DRAFT
+   RESET DRAFT
 ========================================================= */
 
 async function resetCtrDraft() {
@@ -4947,46 +5030,12 @@ async function resetCtrDraft() {
 
 
   if (
-    !currentStationId
-  ) {
-
-    alert(
-      "Station ID is missing."
-    );
-
-
-    return;
-
-  }
-
-
-  const confirmed =
-    confirm(
-
-      "Reset this CTR draft? Current draft data for this station will be replaced with a fresh initial CTR structure."
-
-    );
-
-
-  if (
-    !confirmed
+    !confirm(
+      "Reset this CTR draft?"
+    )
   ) {
 
     return;
-
-  }
-
-
-  if (
-    resetCtrDraftButton
-  ) {
-
-    resetCtrDraftButton.disabled =
-      true;
-
-
-    resetCtrDraftButton.textContent =
-      "Resetting...";
 
   }
 
@@ -5006,15 +5055,13 @@ async function resetCtrDraft() {
         .toISOString();
 
 
-    const freshDraftData = {
+    const draftData = {
 
       schemaVersion:
-        1,
+        2,
 
       stationCtrRacks: [
-
         freshRack
-
       ],
 
       connectedEnds:
@@ -5034,14 +5081,13 @@ async function resetCtrDraft() {
           "ctr_drafts"
         )
         .upsert(
-
           {
 
             station_id:
               currentStationId,
 
             draft_data:
-              freshDraftData,
+              draftData,
 
             status:
               "INITIAL_SETUP",
@@ -5050,14 +5096,12 @@ async function resetCtrDraft() {
               user.id
 
           },
-
           {
 
             onConflict:
               "station_id"
 
           }
-
         );
 
 
@@ -5083,26 +5127,25 @@ async function resetCtrDraft() {
     );
 
 
-    closeEditor();
+    openedStationRacks.clear();
+
+    openedConnectedEnds.clear();
+
+    openedLocationBoxes.clear();
 
 
     renderStationCtrRacks();
-
 
     renderConnectedEnds();
 
 
     setDraftStatus(
-
-      `Reset in database: ${new Date(
-        resetAt
-      ).toLocaleString()}`
-
+      "Draft reset"
     );
 
 
     alert(
-      "CTR Draft has been reset."
+      "CTR Draft reset successfully."
     );
 
   }
@@ -5110,34 +5153,15 @@ async function resetCtrDraft() {
   catch (error) {
 
     console.error(
-      "CTR draft reset error:",
+      "Reset error:",
       error
     );
 
 
     alert(
-
       error.message ||
-      "CTR Draft could not be reset."
-
+      "Draft could not be reset."
     );
-
-  }
-
-  finally {
-
-    if (
-      resetCtrDraftButton
-    ) {
-
-      resetCtrDraftButton.disabled =
-        false;
-
-
-      resetCtrDraftButton.textContent =
-        "Reset Draft";
-
-    }
 
   }
 
@@ -5145,8 +5169,44 @@ async function resetCtrDraft() {
 
 
 /* =========================================================
-   SAVE / RESET EVENTS
+   INITIAL DATA ENTRY
 ========================================================= */
+
+function openInitialDataEntryMode() {
+
+  if (
+    !requireCurrentStationDraftEdit()
+  ) {
+
+    return;
+
+  }
+
+
+  stationCtrRacksContainer
+    ?.scrollIntoView(
+      {
+        behavior:
+          "smooth",
+
+        block:
+          "start"
+      }
+    );
+
+}
+
+
+/* =========================================================
+   EVENTS
+========================================================= */
+
+initialDataEntryButton
+  ?.addEventListener(
+    "click",
+    openInitialDataEntryMode
+  );
+
 
 saveCtrDraftButton
   ?.addEventListener(
@@ -5163,137 +5223,115 @@ resetCtrDraftButton
 
 
 /* =========================================================
-   INITIAL PAGE START
+   INITIALIZE
 ========================================================= */
 
 async function initializeStationBuilder() {
 
-  await loadCurrentStationWorkflowStatus();
-
-
-  renderStationCtrRacks();
-
-
-  renderConnectedEnds();
-
-
-  if (
-    window.ctrAccess?.ready
-  ) {
-
-    applyStationBuilderAccessMode();
-
-  }
-
-
-  await loadCtrDraft();
-
-
-  renderStationCtrRacks();
-
-
-  renderConnectedEnds();
-
-
-  if (
-    window.ctrAccess?.ready
-  ) {
-
-    applyStationBuilderAccessMode();
-
-  }
-
-
-  console.log(
-    "Station CTR builder access:",
-    {
-
-      stationId:
-        currentStationId,
-
-      ctrStatus:
-        currentStationWorkflowStatus,
-
-      editAllowed:
-        canEditCurrentStationDraft()
-
-    }
+  setDraftStatus(
+    "Loading station CTR..."
   );
+
+
+  try {
+
+    /*
+       Status first so edit/view mode is correct.
+    */
+
+    await loadCurrentStationWorkflowStatus();
+
+
+    /*
+       Database data before rendering.
+    */
+
+    await loadCtrDraft();
+
+
+    /*
+       Allow browser to paint once before drawing.
+    */
+
+    await new Promise(
+      function (resolve) {
+
+        requestAnimationFrame(
+          function () {
+
+            requestAnimationFrame(
+              resolve
+            );
+
+          }
+        );
+
+      }
+    );
+
+
+    /*
+       IMPORTANT:
+       All racks/end/location remain collapsed initially.
+       Heavy terminals are therefore not created.
+    */
+
+    openedStationRacks.clear();
+
+    openedConnectedEnds.clear();
+
+    openedLocationBoxes.clear();
+
+
+    renderStationCtrRacks();
+
+    renderConnectedEnds();
+
+
+    scheduleStationAccessApply();
+
+
+    console.log(
+      "CTR station loaded:",
+      {
+
+        station:
+          currentStationId,
+
+        racks:
+          stationCtrRacks.length,
+
+        ends:
+          connectedEnds.length,
+
+        status:
+          currentStationWorkflowStatus
+
+      }
+    );
+
+  }
+
+  catch (error) {
+
+    console.error(
+      "Station CTR initialization error:",
+      error
+    );
+
+
+    setDraftStatus(
+      "Unable to load station CTR"
+    );
+
+
+    renderStationCtrRacks();
+
+    renderConnectedEnds();
+
+  }
 
 }
 
 
 initializeStationBuilder();
-/* =========================================================
-   INITIAL DATA ENTRY BUTTON FIX
-========================================================= */
-
-const initialDataEntryButton =
-  document.getElementById(
-    "initialDataEntryButton"
-  );
-
-
-function openInitialDataEntryMode() {
-
-  if (
-    !requireCurrentStationDraftEdit()
-  ) {
-
-    return;
-
-  }
-
-
-  /*
-    Builder already exists on the page.
-    Re-apply the correct edit permissions before entering.
-  */
-
-  applyStationBuilderAccessMode();
-
-
-  /*
-    Show useful status to the user.
-  */
-
-  setDraftStatus(
-    currentStationWorkflowStatus === "INITIAL_SETUP"
-      ? "Initial data entry mode active. Enter CTR details and click Save Draft."
-      : "Draft editing mode active. Continue editing and click Save Draft."
-  );
-
-
-  /*
-    Move directly to the Station CTR drawing area.
-  */
-
-  const target =
-    document.getElementById(
-      "stationCtrRacksContainer"
-    ) ||
-    saveCtrDraftButton;
-
-
-  if (target) {
-
-    target.scrollIntoView({
-
-      behavior:
-        "smooth",
-
-      block:
-        "start"
-
-    });
-
-  }
-
-}
-
-
-initialDataEntryButton
-  ?.addEventListener(
-    "click",
-    openInitialDataEntryMode
-  );

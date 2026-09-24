@@ -4738,3 +4738,29 @@ div {
   }
 
 }
+
+/* =========================================================
+   CTR LAZY DRAWING / LARGE DATA MODE
+========================================================= */
+
+.ctr-lazy-summary {
+  display: block;
+  margin-top: 5px;
+  color: #64798d;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.15px;
+}
+
+.ctr-open-btn {
+  min-width: 92px;
+}
+
+.ctr-rack-card > .rack-header {
+  position: relative;
+}
+
+body[data-station-edit-mode="view"]
+.ctr-open-btn {
+  display: inline-flex !important;
+}
